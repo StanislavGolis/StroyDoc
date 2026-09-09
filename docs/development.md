@@ -86,3 +86,17 @@ npm run typecheck  # проверка типов
 - Доступ: FastAPI-зависимости (`require_manager`, `require_object_access`). Инженер видит только назначенные объекты, менеджер — все объекты компании; всё в границах `company_id`.
 - Пароли пользователям генерирует сервер и показывает один раз при создании/сбросе.
 - Мультитенантный UI вне MVP: заложена только модель `company_id`.
+
+## Демо и бэкап
+
+- Демо-сценарий: `docs/demo-runbook.md` (новый объект, загрузка РД из `docs/`, паспорта, акты).
+- Бэкап БД перед показом:
+  ```bash
+  docker compose exec db pg_dump -U stroydoc stroydoc > demo_backup.sql
+  ```
+- Восстановление:
+  ```bash
+  docker compose exec -T db psql -U stroydoc stroydoc < demo_backup.sql
+  ```
+- Миграции при обновлении: `docker compose run --rm api alembic upgrade head`.
+
