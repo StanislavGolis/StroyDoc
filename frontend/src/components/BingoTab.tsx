@@ -192,6 +192,7 @@ export function BingoTab({ objectId }: Props) {
       ) : (
         <Collapse
           ghost
+          className="bingo-collapse"
           expandIconPosition="end"
           items={groups.map((g) => ({
             key: g.key,

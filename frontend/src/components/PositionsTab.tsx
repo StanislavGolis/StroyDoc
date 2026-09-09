@@ -368,6 +368,7 @@ export function PositionsTab({ objectId }: Props) {
       ) : (
         <Collapse
           ghost
+          className="bingo-collapse"
           expandIconPosition="end"
           activeKey={q.trim() ? groups.map((g) => g.key) : expanded}
           onChange={(keys) => setExpanded((keys as string[]) ?? [])}

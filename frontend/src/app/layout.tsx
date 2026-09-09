@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "StroyDoc — контроль документации",
+  title: "Бинго-Док — контроль комплектности документации",
   description: "Система контроля комплектности документации для отдела ПТО",
 };
 

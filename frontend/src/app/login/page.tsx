@@ -37,7 +37,7 @@ export default function LoginPage() {
     >
       <Card style={{ width: 380 }}>
         <Typography.Title level={3} style={{ textAlign: "center", marginTop: 0 }}>
-          StroyDoc
+          🏗 Бинго-Док
         </Typography.Title>
         <Typography.Paragraph type="secondary" style={{ textAlign: "center" }}>
           Контроль комплектности документации

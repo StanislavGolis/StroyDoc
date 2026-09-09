@@ -1,0 +1,61 @@
+/* Глобальные стили «Бинго-Док» (дополнение к AntD) */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+}
+
+/* Зебра в таблицах */
+.ant-table-tbody > tr.ant-table-row:nth-child(even) > td.ant-table-cell {
+  background: #f8fafc;
+}
+.ant-table-tbody > tr.ant-table-row:hover > td.ant-table-cell {
+  background: #e0f2fe !important;
+}
+
+/* Плашки-группы (Collapse) */
+.bingo-collapse .ant-collapse-header {
+  border-radius: 8px !important;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 6px;
+  padding: 10px 16px !important;
+}
+.bingo-collapse .ant-collapse-content-box {
+  padding: 8px 4px !important;
+}
+
+/* Карточки объектов */
+.object-card .ant-card-body {
+  padding: 16px;
+}
+.object-card .ant-card-meta-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.object-card .ant-card-meta-description {
+  font-size: 13px;
+}
+
+/* Плашки статусов */
+.status-done {
+  background: #22c55e !important;
+  color: #ffffff !important;
+  border: none;
+}
+.status-warn {
+  background: #eab308 !important;
+  color: #ffffff !important;
+  border: none;
+}
+.status-danger {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border: none;
+}
+.status-muted {
+  background: #94a3b8 !important;
+  color: #ffffff !important;
+  border: none;
+}

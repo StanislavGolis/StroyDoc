@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   App as AntApp,
+  Breadcrumb,
   Button,
   Descriptions,
   Select,
@@ -184,6 +185,13 @@ export default function ObjectDetailPage() {
 
   return (
     <div>
+      <Breadcrumb
+        style={{ marginBottom: 8 }}
+        items={[
+          { title: <a onClick={() => router.push("/objects")}>Объекты</a> },
+          { title: object.name },
+        ]}
+      />
       <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 12 }}>
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => router.push("/objects")}>

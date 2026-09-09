@@ -2,23 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  App as AntApp,
-  Button,
-  Input,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from "antd";
-import { PlusOutlined } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import { App as AntApp, Button, Card, Col, Empty, Input, Row, Select, Space, Spin, Tag, Typography } from "antd";
+import { ApartmentOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { objectsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { formatDate, STATUS_COLORS, STATUS_LABELS } from "@/lib/labels";
+import { formatDate, STATUS_LABELS } from "@/lib/labels";
 import type { ConstructionObject, ObjectStatus } from "@/lib/types";
 import { ObjectFormModal } from "@/components/ObjectFormModal";
+
+const STATUS_COLOR: Record<string, string> = {
+  planning: "#94a3b8",
+  active: "#3b82f6",
+  closed: "#22c55e",
+};
 
 export default function ObjectsPage() {
   const { isManager } = useAuth();
@@ -34,8 +30,7 @@ export default function ObjectsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await objectsApi.list({ q, status });
-      setData(list);
+      setData(await objectsApi.list({ q, status }));
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Не удалось загрузить объекты");
     } finally {
@@ -47,52 +42,20 @@ export default function ObjectsPage() {
     void load();
   }, [load]);
 
-  const columns: ColumnsType<ConstructionObject> = [
-    {
-      title: "Название",
-      dataIndex: "name",
-      render: (name: string, row) => (
-        <a onClick={() => router.push(`/objects/${row.id}`)}>{name}</a>
-      ),
-    },
-    { title: "Шифр", dataIndex: "code", width: 140, render: (v: string | null) => v ?? "—" },
-    {
-      title: "Период",
-      width: 220,
-      render: (_, row) => `${formatDate(row.start_date)} — ${formatDate(row.end_date)}`,
-    },
-    {
-      title: "Статус",
-      dataIndex: "status",
-      width: 140,
-      render: (s: ObjectStatus) => <Tag color={STATUS_COLORS[s]}>{STATUS_LABELS[s]}</Tag>,
-    },
-    {
-      title: "Действия",
-      width: 140,
-      render: (_, row) =>
-        isManager ? (
-          <Button type="link" size="small" onClick={() => { setEditing(row); setModalOpen(true); }}>
-            Редактировать
-          </Button>
-        ) : null,
-    },
-  ];
-
   return (
     <div>
-      <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
+      <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 20 }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>
           Объекты
         </Typography.Title>
         {isManager && (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditing(null); setModalOpen(true); }}>
-            Новый объект
+            Создать объект
           </Button>
         )}
       </Space>
 
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 20 }}>
         <Input.Search
           placeholder="Поиск по названию или шифру"
           allowClear
@@ -109,18 +72,55 @@ export default function ObjectsPage() {
         />
       </Space>
 
-      <Table<ConstructionObject>
-        rowKey="id"
-        loading={loading}
-        columns={columns}
-        dataSource={data}
-        pagination={{ pageSize: 20, showTotal: (t) => `Всего: ${t}` }}
-        locale={{ emptyText: "Объектов пока нет" }}
-        onRow={(row) => ({
-          onClick: () => router.push(`/objects/${row.id}`),
-          style: { cursor: "pointer" },
-        })}
-      />
+      {loading ? (
+        <div style={{ padding: 60, textAlign: "center" }}>
+          <Spin size="large" />
+        </div>
+      ) : data.length === 0 ? (
+        <Empty description="Объектов пока нет — создайте первый" />
+      ) : (
+        <Row gutter={[16, 16]}>
+          {data.map((o) => (
+            <Col key={o.id} xs={24} sm={12} lg={8} xl={6}>
+              <Card
+                hoverable
+                className="object-card"
+                style={{ height: "100%" }}
+                onClick={() => router.push(`/objects/${o.id}`)}
+                title={
+                  <Space>
+                    <ApartmentOutlined style={{ color: "#3b82f6" }} />
+                    <Typography.Text strong>{o.name}</Typography.Text>
+                  </Space>
+                }
+                extra={<Tag style={{ color: "#fff", background: STATUS_COLOR[o.status] }}>{STATUS_LABELS[o.status]}</Tag>}
+              >
+                <Typography.Paragraph style={{ marginBottom: 8 }}>
+                  <Typography.Text type="secondary">Шифр: </Typography.Text>
+                  {o.code ?? "—"}
+                </Typography.Paragraph>
+                <Typography.Paragraph style={{ marginBottom: 4, fontSize: 13 }}>
+                  {formatDate(o.start_date)} — {formatDate(o.end_date)}
+                </Typography.Paragraph>
+                <Space style={{ marginTop: 12 }} onClick={(e) => e.stopPropagation()}>
+                  <Button size="small" type="primary">
+                    Перейти
+                  </Button>
+                  {isManager && (
+                    <Button
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => { setEditing(o); setModalOpen(true); }}
+                    >
+                      Редактировать
+                    </Button>
+                  )}
+                </Space>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
 
       <ObjectFormModal
         open={modalOpen}
