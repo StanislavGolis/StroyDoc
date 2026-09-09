@@ -120,3 +120,16 @@ export interface IncomingDoc {
   created_at: string;
 }
 
+export type ActType = "avk" | "aosr" | "vso" | "vr";
+
+export interface Act {
+  id: number;
+  object_id: number;
+  act_type: ActType;
+  doc_number: string | null;
+  doc_date: string | null;
+  status: "draft" | "ready";
+  linked_items: number;
+  created_at: string;
+}
+

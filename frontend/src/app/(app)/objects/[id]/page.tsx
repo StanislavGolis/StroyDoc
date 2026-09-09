@@ -25,6 +25,7 @@ import { FilesTab } from "@/components/FilesTab";
 import { PositionsTab } from "@/components/PositionsTab";
 import { DocsTab } from "@/components/DocsTab";
 import { BingoTab } from "@/components/BingoTab";
+import { ActsTab } from "@/components/ActsTab";
 
 export default function ObjectDetailPage() {
   const params = useParams<{ id: string }>();
@@ -220,6 +221,7 @@ export default function ObjectDetailPage() {
           { key: "docs", label: "Документы (паспорта)", children: <DocsTab objectId={object.id} /> },
           { key: "items", label: "Позиции (РД)", children: <PositionsTab objectId={object.id} /> },
           { key: "bingo", label: "Бинго-карта", children: <BingoTab objectId={object.id} /> },
+          { key: "acts", label: "Акты", children: <ActsTab objectId={object.id} /> },
         ]}
       />
 

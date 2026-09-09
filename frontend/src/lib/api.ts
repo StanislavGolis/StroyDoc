@@ -1,4 +1,6 @@
 import type {
+  Act,
+  ActType,
   Assignment,
   ConstructionObject,
   CreatedUserResponse,
@@ -337,6 +339,50 @@ export const docsApi = {
     if (!doc.file_id) return;
     const fake = { id: doc.file_id, original_filename: doc.original_filename ?? "doc.pdf" } as ObjectFile;
     await filesApi.download(objectId, fake);
+  },
+};
+
+export const actsApi = {
+  list: (objectId: number, actType?: ActType) =>
+    request<Act[]>(
+      `/objects/${objectId}/acts${actType ? `?act_type=${actType}` : ""}`
+    ),
+  create: (
+    objectId: number,
+    payload: { act_type: ActType; doc_number?: string; doc_date?: string | null; item_ids: number[] }
+  ) =>
+    request<Act>(`/objects/${objectId}/acts`, { method: "POST", body: JSON.stringify(payload) }),
+  update: (objectId: number, actId: number, patch: Record<string, unknown>) =>
+    request<Act>(`/objects/${objectId}/acts/${actId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  items: (objectId: number, actId: number) => request<SourceItem[]>(`/objects/${objectId}/acts/${actId}/items`),
+  addItems: (objectId: number, actId: number, itemIds: number[]) =>
+    request<{ linked_items: number }>(`/objects/${objectId}/acts/${actId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ item_ids: itemIds }),
+    }),
+  removeItems: (objectId: number, actId: number, itemIds: number[]) =>
+    request<{ linked_items: number }>(`/objects/${objectId}/acts/${actId}/items/remove`, {
+      method: "POST",
+      body: JSON.stringify({ item_ids: itemIds }),
+    }),
+  remove: (objectId: number, actId: number) =>
+    request<void>(`/objects/${objectId}/acts/${actId}`, { method: "DELETE" }),
+
+  async generate(objectId: number, act: Act): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+    const resp = await fetch(`/api/v1/objects/${objectId}/acts/${act.id}/generate`, {
+      headers,
+      credentials: "include",
+    });
+    if (!resp.ok) throw new ApiError(resp.status, `Ошибка ${resp.status}`);
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `act_${act.act_type}_${act.doc_number ?? act.id}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
   },
 };
 
