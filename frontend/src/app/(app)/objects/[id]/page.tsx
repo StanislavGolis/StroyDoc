@@ -23,6 +23,7 @@ import { ObjectFormModal } from "@/components/ObjectFormModal";
 import { FilesTab } from "@/components/FilesTab";
 import { PositionsTab } from "@/components/PositionsTab";
 import { DocsTab } from "@/components/DocsTab";
+import { BingoTab } from "@/components/BingoTab";
 
 export default function ObjectDetailPage() {
   const params = useParams<{ id: string }>();
@@ -210,6 +211,7 @@ export default function ObjectDetailPage() {
           { key: "files", label: "Файлы", children: <FilesTab objectId={object.id} /> },
           { key: "docs", label: "Документы (паспорта)", children: <DocsTab objectId={object.id} /> },
           { key: "items", label: "Позиции (РД)", children: <PositionsTab objectId={object.id} /> },
+          { key: "bingo", label: "Бинго-карта", children: <BingoTab objectId={object.id} /> },
         ]}
       />
 
