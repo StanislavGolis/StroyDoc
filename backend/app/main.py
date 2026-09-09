@@ -9,7 +9,7 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
-    description="API системы контроля комплектности документации StroyDoc",
+    description="API системы контроля комплектности документации «СтройДок»",
     docs_url="/docs",
     openapi_url="/openapi.json",
 )

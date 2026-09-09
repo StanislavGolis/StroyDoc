@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             letterSpacing: 0.2,
           }}
         >
-          🏗 <span>Бинго-Док</span>
+          🏗 <span>СтройДок</span>
         </div>
         <Menu
           theme="dark"
