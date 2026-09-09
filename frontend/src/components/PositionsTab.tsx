@@ -341,7 +341,7 @@ export function PositionsTab({ objectId }: Props) {
           value={v == null ? null : Number(v)}
           style={{ width: 80 }}
           onChange={(n) => {
-            if (n != null) void applyPatch(row.id, { quantity: n });
+            void applyPatch(row.id, { quantity: n == null ? null : Number(n) });
           }}
         />
       ),

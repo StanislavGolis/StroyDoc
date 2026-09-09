@@ -102,10 +102,15 @@ def update_item(
     user: User = Depends(get_current_user),
     obj: ConstructionObject = Depends(require_object_access),
 ) -> SourceItem:
-    """Инженер правит поля позиции и признак отслеживания."""
+    """Инженер правит поля позиции и признак отслеживания.
+
+    Применяются только явно переданные поля — так можно и очищать (null),
+    и не затирать остальные.
+    """
     item = db.get(SourceItem, item_id)
     if item is None or item.object_id != obj.id:
         raise HTTPException(status_code=404, detail="Позиция не найдена")
+    updates = body.model_dump(exclude_unset=True)
     for field in (
         "position",
         "name",
@@ -118,12 +123,10 @@ def update_item(
         "mass",
         "notes",
         "full_code",
+        "tracked",
     ):
-        value = getattr(body, field)
-        if value is not None:
-            setattr(item, field, value)
-    if body.tracked is not None:
-        item.tracked = body.tracked
+        if field in updates:
+            setattr(item, field, updates[field])
     db.add(item)
     db.commit()
     db.refresh(item)

@@ -55,6 +55,13 @@ def test_edit_item_and_tracked(client, make_user, login):
     untracked = client.get(f"{URL}/{obj['id']}/items?tracked=false", headers=headers).json()
     assert [i["id"] for i in untracked] == [first["id"]]
 
+    # явная очистка поля (null) применяется
+    clear = client.patch(
+        f"{URL}/{obj['id']}/items/{first['id']}", json={"mark": None}, headers=headers
+    )
+    assert clear.status_code == 200
+    assert clear.json()["mark"] is None
+
     # массовое включение обратно
     bulk = client.post(
         f"{URL}/{obj['id']}/items/set-tracked",
