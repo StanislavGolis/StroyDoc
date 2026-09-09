@@ -34,3 +34,6 @@ backend/test_*.db
 
 # Docker
 backend/.coverage
+
+# Реальные образцы документов заказчика (конфиденциальны и велики)
+docs/*.pdf

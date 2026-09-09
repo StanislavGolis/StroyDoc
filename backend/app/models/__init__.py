@@ -2,6 +2,8 @@
 from app.models.assignment import ObjectAssignment
 from app.models.company import Company
 from app.models.construction_object import ConstructionObject
+from app.models.object_file import ObjectFile
+from app.models.source_item import SourceItem
 from app.models.user import User
 
 __all__ = [
@@ -9,4 +11,6 @@ __all__ = [
     "User",
     "ConstructionObject",
     "ObjectAssignment",
+    "ObjectFile",
+    "SourceItem",
 ]

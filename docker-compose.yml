@@ -48,6 +48,11 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       CORS_ORIGINS: '["http://localhost:3000"]'
       REDIS_URL: redis://redis:6379/0
+      STORAGE_BACKEND: minio
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: stroydoc
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-Администратор системы}
@@ -67,6 +72,11 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-stroydoc}:${POSTGRES_PASSWORD:-stroydoc}@db:5432/${POSTGRES_DB:-stroydoc}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me-please-use-32-bytes-min}
       REDIS_URL: redis://redis:6379/0
+      STORAGE_BACKEND: minio
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: stroydoc
     depends_on:
       db:
         condition: service_healthy

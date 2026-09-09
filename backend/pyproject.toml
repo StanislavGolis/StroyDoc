@@ -15,6 +15,9 @@ dependencies = [
     "PyJWT>=2.8",
     "bcrypt>=4.1",
     "celery[redis]>=5.4",
+    "minio>=7.2",
+    "pymupdf>=1.24",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +37,7 @@ include = ["app*"]
 [tool.ruff]
 line-length = 110
 target-version = "py311"
+exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]

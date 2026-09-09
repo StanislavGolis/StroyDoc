@@ -20,6 +20,8 @@ import { useAuth } from "@/lib/auth-context";
 import { formatDateTime, ROLE_LABELS, STATUS_COLORS, STATUS_LABELS } from "@/lib/labels";
 import type { Assignment, ConstructionObject, User } from "@/lib/types";
 import { ObjectFormModal } from "@/components/ObjectFormModal";
+import { FilesTab } from "@/components/FilesTab";
+import { PositionsTab } from "@/components/PositionsTab";
 
 export default function ObjectDetailPage() {
   const params = useParams<{ id: string }>();
@@ -200,9 +202,12 @@ export default function ObjectDetailPage() {
       </Space>
 
       <Tabs
+        destroyInactiveTabPane
         items={[
           { key: "info", label: "Информация", children: infoTab },
           { key: "assignments", label: "Назначения", children: assignmentsTab },
+          { key: "files", label: "Файлы", children: <FilesTab objectId={object.id} /> },
+          { key: "items", label: "Позиции (РД)", children: <PositionsTab objectId={object.id} /> },
         ]}
       />
 

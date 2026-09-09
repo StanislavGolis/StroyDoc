@@ -50,3 +50,41 @@ export interface TokenResponse {
   token_type: string;
   user: User;
 }
+
+export type DocKind = "spec" | "estimate" | "passport" | "other";
+
+export type ParseStatusType = "uploaded" | "parsing" | "done" | "error";
+
+export interface ObjectFile {
+  id: number;
+  object_id: number;
+  kind: DocKind;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  sha256: string;
+  status: ParseStatusType;
+  error_message: string | null;
+  parsed_items: number;
+  created_at: string;
+  uploader: { id: number; full_name: string; email: string } | null;
+}
+
+export interface SourceItem {
+  id: number;
+  object_id: number;
+  source_file_id: number | null;
+  source: "rd" | "estimate";
+  row_number: number;
+  position: string | null;
+  name: string;
+  mark: string | null;
+  doc_ref: string | null;
+  product_code: string | null;
+  supplier: string | null;
+  unit: string | null;
+  quantity: number | string | null;
+  mass: string | null;
+  notes: string | null;
+}
+

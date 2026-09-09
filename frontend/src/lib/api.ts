@@ -2,8 +2,11 @@ import type {
   Assignment,
   ConstructionObject,
   CreatedUserResponse,
+  DocKind,
+  ObjectFile,
   ObjectStatus,
   ResetPasswordResponse,
+  SourceItem,
   TokenResponse,
   User,
 } from "./types";
@@ -150,6 +153,75 @@ export const objectsApi = {
     }),
   removeAssignment: (id: number, userId: number) =>
     request<void>(`/objects/${id}/assignments/${userId}`, { method: "DELETE" }),
+};
+
+// ---------- Files & Items (Спринт 2) ----------
+export const filesApi = {
+  list: (objectId: number) => request<ObjectFile[]>(`/objects/${objectId}/files`),
+
+  async upload(objectId: number, kind: DocKind, file: File): Promise<ObjectFile> {
+    const fd = new FormData();
+    fd.append("kind", kind);
+    fd.append("file", file);
+
+    const doFetch = (token?: string | null) => {
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return fetch(`/api/v1/objects/${objectId}/files`, {
+        method: "POST",
+        headers,
+        body: fd,
+        credentials: "include",
+      });
+    };
+
+    let resp = await doFetch(accessToken);
+    if (resp.status === 401) {
+      const ok = await refreshSession();
+      if (ok) resp = await doFetch(accessToken);
+    }
+    if (!resp.ok) {
+      let detail = `Ошибка ${resp.status}`;
+      try {
+        const body = await resp.json();
+        if (typeof body?.detail === "string") detail = body.detail;
+      } catch {
+        /* не JSON */
+      }
+      throw new ApiError(resp.status, detail);
+    }
+    return (await resp.json()) as ObjectFile;
+  },
+
+  parse: (objectId: number, fileId: number) =>
+    request<ObjectFile>(`/objects/${objectId}/files/${fileId}/parse`, { method: "POST" }),
+
+  remove: (objectId: number, fileId: number) =>
+    request<void>(`/objects/${objectId}/files/${fileId}`, { method: "DELETE" }),
+
+  async download(objectId: number, file: ObjectFile): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+    const resp = await fetch(`/api/v1/objects/${objectId}/files/${file.id}/download`, {
+      headers,
+      credentials: "include",
+    });
+    if (!resp.ok) throw new ApiError(resp.status, `Ошибка ${resp.status}`);
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.original_filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const itemsApi = {
+  list: (objectId: number, sourceFile?: number) => {
+    const qs = sourceFile ? `?source_file=${sourceFile}` : "";
+    return request<SourceItem[]>(`/objects/${objectId}/items${qs}`);
+  },
 };
 
 // ---------- Users ----------

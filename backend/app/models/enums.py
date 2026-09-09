@@ -15,3 +15,26 @@ class ObjectStatus(str, Enum):
     PLANNING = "planning"  # Планируется
     ACTIVE = "active"  # В работе
     CLOSED = "closed"  # Закрыт
+
+
+class DocKind(str, Enum):
+    """Вид документа при загрузке на объект."""
+
+    SPECIFICATION = "spec"  # спецификация из РД
+    ESTIMATE = "estimate"  # смета
+    PASSPORT = "passport"  # паспорта/сертификаты
+    OTHER = "other"
+
+
+class ParseStatus(str, Enum):
+    UPLOADED = "uploaded"  # только загружен
+    PARSING = "parsing"  # идёт разбор
+    DONE = "done"  # разобран
+    ERROR = "error"  # ошибка разбора
+
+
+class ItemSource(str, Enum):
+    """Происхождение позиции."""
+
+    RD = "rd"  # рабочая документация (спецификация)
+    ESTIMATE = "estimate"  # смета

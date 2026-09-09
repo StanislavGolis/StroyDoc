@@ -23,6 +23,18 @@ class Settings(BaseSettings):
     # Redis / Celery
     redis_url: str = "redis://localhost:6379/0"
 
+    # Хранилище файлов
+    storage_backend: str = "local"  # local | minio
+    storage_local_dir: str = "./storage"
+    minio_endpoint: str = "http://minio:9000"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+    minio_bucket: str = "stroydoc"
+    minio_secure: bool = False
+    object_storage_quota_bytes: int = 10 * 1024 * 1024 * 1024  # 10 ГБ на объект
+    max_file_size_bytes: int = 100 * 1024 * 1024  # 100 МБ (реальные сканы паспортов)
+    max_zip_size_bytes: int = 1024 * 1024 * 1024  # 1 ГБ (архивы паспортов)
+
     # Cookies
     cookie_name: str = "stroydoc_refresh"
     cookie_secure: bool = False

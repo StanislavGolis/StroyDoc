@@ -6,10 +6,13 @@ import tempfile
 
 # --- Настройка окружения ДО импорта приложения -----------------------------
 os.environ.setdefault("SECRET_KEY", "test-secret-key-0123456789-0123456789")
+os.environ.setdefault("STORAGE_LOCAL_DIR", os.path.join(tempfile.mkdtemp(prefix="stroydoc_st_"), "storage"))
 # В CI переменная DATABASE_URL уже задана (postgres). Локально — sqlite-файл.
 if "DATABASE_URL" not in os.environ:
     _db_file = pathlib.Path(tempfile.mkdtemp(prefix="stroydoc_tests_")) / "test.db"
     os.environ["DATABASE_URL"] = f"sqlite:///{_db_file.as_posix()}?check_same_thread=false"
+
+import shutil
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,6 +22,7 @@ from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.main import app
 from app.models import Company, User
+from app.storage import get_storage
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -30,11 +34,16 @@ def _init_db() -> None:
 
 @pytest.fixture(autouse=True)
 def _clean_tables(_init_db) -> None:
-    """Очистка всех таблиц перед каждым тестом."""
+    """Очистка всех таблиц и локального хранилища перед каждым тестом."""
     with SessionLocal() as db:
         for table in reversed(Base.metadata.sorted_tables):
             db.execute(table.delete())
         db.commit()
+    storage = get_storage()
+    if storage.__class__.__name__ == "LocalStorage":
+        root = storage.root
+        shutil.rmtree(root, ignore_errors=True)
+        root.mkdir(parents=True, exist_ok=True)
 
 
 @pytest.fixture

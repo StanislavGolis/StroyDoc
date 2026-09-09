@@ -26,3 +26,6 @@ class ConstructionObject(Base):
     assignments: Mapped[list["ObjectAssignment"]] = relationship(  # noqa: F821
         back_populates="object", cascade="all, delete-orphan"
     )
+    files: Mapped[list["ObjectFile"]] = relationship(  # noqa: F821
+        back_populates="object", cascade="all, delete-orphan"
+    )
