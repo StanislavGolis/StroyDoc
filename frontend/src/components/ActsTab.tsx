@@ -268,6 +268,7 @@ export function ActsTab({ objectId }: Props) {
         dataSource={acts}
         pagination={false}
         size="small"
+        scroll={{ x: 1100 }}
         locale={{ emptyText: "Актов нет — создайте первый" }}
       />
 

@@ -8,7 +8,6 @@ import {
   Select,
   Space,
   Table,
-  Tag,
   Typography,
   Upload,
 } from "antd";
@@ -23,19 +22,13 @@ import type { ColumnsType } from "antd/es/table";
 import { filesApi } from "@/lib/api";
 import { formatDateTime } from "@/lib/labels";
 import type { DocKind, ObjectFile } from "@/lib/types";
+import { StatusBadge } from "@/components/StatusBadge";
 
 const KIND_LABELS: Record<DocKind, string> = {
   spec: "Спецификация",
   estimate: "Смета",
   passport: "Паспорта",
   other: "Прочее",
-};
-
-const STATUS_TAGS: Record<string, string> = {
-  uploaded: "default",
-  parsing: "processing",
-  done: "success",
-  error: "error",
 };
 
 function fmtSize(bytes: number): string {
@@ -102,16 +95,20 @@ export function FilesTab({ objectId }: Props) {
       title: "Статус",
       dataIndex: "status",
       width: 170,
-      render: (s: string, row) => (
-        <Space size={4} direction="vertical">
-          <Tag color={STATUS_TAGS[s]}>{s === "done" ? `Разобран (${row.parsed_items})` : s}</Tag>
-          {row.status === "error" && (
-            <Typography.Text type="danger" style={{ fontSize: 12 }}>
-              {row.error_message}
-            </Typography.Text>
-          )}
-        </Space>
-      ),
+      render: (s: string, row) => {
+        const tone =
+          s === "done" ? "done" : s === "parsing" ? "warn" : s === "error" ? "danger" : "muted";
+        return (
+          <Space size={4} direction="vertical">
+            <StatusBadge tone={tone as "done"}>{s === "done" ? `Разобран (${row.parsed_items})` : s}</StatusBadge>
+            {row.status === "error" && (
+              <Typography.Text type="danger" style={{ fontSize: 12 }}>
+                {row.error_message}
+              </Typography.Text>
+            )}
+          </Space>
+        );
+      },
     },
     { title: "Загружен", dataIndex: "created_at", width: 160, render: (v: string) => formatDateTime(v) },
     {
@@ -198,6 +195,7 @@ export function FilesTab({ objectId }: Props) {
         dataSource={files}
         pagination={false}
         size="small"
+        scroll={{ x: 900 }}
         locale={{ emptyText: "Файлы не загружены" }}
       />
     </div>

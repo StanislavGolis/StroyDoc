@@ -9,7 +9,6 @@ import {
   Popconfirm,
   Space,
   Table,
-  Tag,
   Typography,
   Upload,
 } from "antd";
@@ -24,6 +23,7 @@ import type { ColumnsType } from "antd/es/table";
 import { docsApi, itemsApi } from "@/lib/api";
 import { formatDateTime } from "@/lib/labels";
 import type { IncomingDoc, SourceItem } from "@/lib/types";
+import { StatusBadge } from "@/components/StatusBadge";
 
 function fmtSize(bytes: number | null): string {
   if (bytes == null) return "—";
@@ -118,7 +118,12 @@ export function DocsTab({ objectId }: Props) {
       title: "Привязано",
       dataIndex: "linked_items",
       width: 110,
-      render: (v: number) => (v > 0 ? <Tag color="green">{v} поз.</Tag> : <Tag color="default">нет</Tag>),
+      render: (v: number) =>
+        v > 0 ? (
+          <StatusBadge tone="done">{v} поз.</StatusBadge>
+        ) : (
+          <StatusBadge tone="muted">нет</StatusBadge>
+        ),
     },
     { title: "Загружен", dataIndex: "created_at", width: 160, render: (v: string) => formatDateTime(v) },
     {
@@ -212,6 +217,7 @@ export function DocsTab({ objectId }: Props) {
         dataSource={docs}
         pagination={false}
         size="small"
+        scroll={{ x: 1000 }}
         locale={{ emptyText: "Документов нет — загрузите паспорта/сертификаты" }}
       />
 
