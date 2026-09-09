@@ -86,6 +86,17 @@ def test_act_requires_object_items(client, make_user, login):
     assert act.json()["linked_items"] == 0
 
 
+def test_act_auto_number(client, make_user, login):
+    obj, headers, items = _prepared(client, make_user, login)
+    act = client.post(
+        f"{URL}/{obj['id']}/acts",
+        json={"act_type": "avk", "item_ids": [items[0]["id"]]},
+        headers=headers,
+    )
+    assert act.status_code == 201, act.text
+    assert act.json()["doc_number"] == "АВК-001"
+
+
 def test_acts_filter_by_type(client, make_user, login):
     obj, headers, items = _prepared(client, make_user, login)
     client.post(

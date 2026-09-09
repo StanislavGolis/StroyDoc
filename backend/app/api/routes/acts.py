@@ -29,6 +29,13 @@ ACT_TYPE_LABELS = {
     ActType.VR: "Ведомость выполненных работ",
 }
 
+ACT_PREFIX = {
+    ActType.AVK: "АВК",
+    ActType.AOSR: "АОСР",
+    ActType.VSO: "ВСО",
+    ActType.VR: "ВР",
+}
+
 
 def _get_act_or_404(act_id: int, db: Session, obj: ConstructionObject) -> Act:
     act = db.scalar(
@@ -81,11 +88,24 @@ def create_act(
     user: User = Depends(get_current_user),
     obj: ConstructionObject = Depends(require_object_access),
 ) -> dict:
+    # автономер: «АВК-001» и т.п., если номер не указан (считаем ДО вставки)
+    auto_number: str | None = None
+    if not (body.doc_number and body.doc_number.strip()):
+        seq = (
+            db.scalar(
+                select(func.count()).select_from(Act).where(
+                    Act.object_id == obj.id, Act.act_type == body.act_type
+                )
+            )
+            or 0
+        ) + 1
+        auto_number = f"{ACT_PREFIX.get(body.act_type, body.act_type.value)}-{seq:03d}"
+
     act = Act(
         company_id=obj.company_id,
         object_id=obj.id,
         act_type=body.act_type,
-        doc_number=body.doc_number.strip() if body.doc_number and body.doc_number.strip() else None,
+        doc_number=body.doc_number.strip() if body.doc_number and body.doc_number.strip() else auto_number,
         doc_date=body.doc_date,
         created_by=user.id,
     )
