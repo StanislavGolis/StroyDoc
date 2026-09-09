@@ -80,6 +80,12 @@ function normKey(s: string | null): string {
   return (s ?? "").toLowerCase().replace(/[^0-9a-zа-яё]/gi, "");
 }
 
+function prefixOf(item: SourceItem): string {
+  const fc = item.full_code?.trim() ?? "";
+  const m = fc.match(/^(.*?)\.(СО\d+)$/i);
+  return m ? m[1] : fc || "Без шифра";
+}
+
 export function PositionsTab({ objectId }: Props) {
   const { message } = AntApp.useApp();
   const [items, setItems] = useState<SourceItem[]>([]);
@@ -144,7 +150,8 @@ export function PositionsTab({ objectId }: Props) {
   }, [visible]);
 
   const groupTracked = (group: Group, tracked: boolean) => {
-    const ids = group.items.map((i) => i.id);
+    const ids = group.items.filter((i) => i.tracked !== tracked).map((i) => i.id);
+    if (ids.length === 0 && tracked) return; // нет скрытых в текущем списке
     void itemsApi
       .setTracked(objectId, { tracked, ids })
       .then((r) => {
@@ -152,6 +159,23 @@ export function PositionsTab({ objectId }: Props) {
         void load();
       })
       .catch((err: unknown) => message.error(err instanceof Error ? err.message : "Ошибка"));
+  };
+
+  // «Показывать шифр» работает по всем позициям группы, включая скрытые
+  const showGroupAll = async (group: Group) => {
+    try {
+      const all = await itemsApi.list(objectId, { tracked: undefined });
+      const ids = all.filter((i) => prefixOf(i) === group.key && !i.tracked).map((i) => i.id);
+      if (ids.length === 0) {
+        message.info("Скрытых позиций в этом шифре нет");
+        return;
+      }
+      await itemsApi.setTracked(objectId, { tracked: true, ids });
+      message.success(`Показано позиций: ${ids.length}`);
+      await load();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Ошибка");
+    }
   };
 
   const applyPatch = async (id: number, patch: Record<string, unknown>) => {
@@ -347,7 +371,12 @@ export function PositionsTab({ objectId }: Props) {
           />
           <Segmented
             value={trackedFilter}
-            onChange={(v) => setTrackedFilter(String(v))}
+            onChange={(v) => {
+              const next = String(v);
+              setTrackedFilter(next);
+              setExpanded([]);
+              setMerged({});
+            }}
             options={[
               { label: "Отслеживаем", value: "tracked" },
               { label: "Все", value: "all" },
@@ -388,7 +417,7 @@ export function PositionsTab({ objectId }: Props) {
                 ))}
                 <div style={{ marginLeft: "auto" }} onClick={(e) => e.stopPropagation()}>
                   <Space>
-                    <Button size="small" icon={<EyeOutlined />} title="Показывать в Мастер-списке" onClick={() => groupTracked(g, true)}>
+                    <Button size="small" icon={<EyeOutlined />} title="Показывать в Мастер-списке" onClick={() => void showGroupAll(g)}>
                       Показать
                     </Button>
                     <Button size="small" danger icon={<EyeInvisibleOutlined />} title="Скрыть из Мастер-списка" onClick={() => groupTracked(g, false)}>
