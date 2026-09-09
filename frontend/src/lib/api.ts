@@ -66,16 +66,18 @@ async function request<T>(path: string, init: RequestInit = {}, retried = false)
     if (ok) return request<T>(path, init, true);
   }
 
-  if (resp.status === 204) return undefined as T;
-
-  let detail = `Ошибка ${resp.status}`;
-  try {
-    const body = await resp.json();
-    if (typeof body?.detail === "string") detail = body.detail;
-  } catch {
-    /* тело не JSON */
+  if (!resp.ok) {
+    let detail = `Ошибка ${resp.status}`;
+    try {
+      const body = await resp.json();
+      if (typeof body?.detail === "string") detail = body.detail;
+    } catch {
+      /* тело не JSON */
+    }
+    throw new ApiError(resp.status, detail);
   }
-  if (!resp.ok) throw new ApiError(resp.status, detail);
+
+  if (resp.status === 204) return undefined as T;
   return (await resp.json()) as T;
 }
 
