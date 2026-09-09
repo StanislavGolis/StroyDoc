@@ -18,6 +18,7 @@ import { ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { itemsApi } from "@/lib/api";
 import type { SourceItem } from "@/lib/types";
+import { StatusBadge } from "@/components/StatusBadge";
 
 const DOC_COLUMNS = [
   { key: "avk", field: "act_avk", title: "АВК" },
@@ -126,9 +127,9 @@ export function BingoTab({ objectId }: Props) {
       width: 150,
       render: (_, row) =>
         row.docs_count > 0 ? (
-          <Tag color="green">✓ {row.docs_count}</Tag>
+          <StatusBadge tone="done">✓ {row.docs_count}</StatusBadge>
         ) : (
-          <Tag color="red">нет</Tag>
+          <StatusBadge tone="danger">нет</StatusBadge>
         ),
     },
     ...DOC_COLUMNS.map((c) => ({
@@ -137,7 +138,7 @@ export function BingoTab({ objectId }: Props) {
       width: 90,
       render: (_: unknown, row: SourceItem) => {
         const n = row[c.field as keyof SourceItem] as number;
-        return n > 0 ? <Tag color="green">{n}</Tag> : <Tag>—</Tag>;
+        return n > 0 ? <StatusBadge tone="done">{n}</StatusBadge> : <StatusBadge tone="muted">—</StatusBadge>;
       },
     })),
   ];

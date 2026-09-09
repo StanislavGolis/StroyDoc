@@ -26,6 +26,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { itemsApi } from "@/lib/api";
 import type { SourceItem } from "@/lib/types";
+import { StatusBadge } from "@/components/StatusBadge";
 
 interface TextEditProps {
   value: string | null;
@@ -257,13 +258,13 @@ export function PositionsTab({ objectId }: Props) {
       width: 90,
       render: (_, row) =>
         row.docs_count > 0 ? (
-          <Tag color="green" title="Документ(ы) привязан(ы)">
-            {row.docs_count}
-          </Tag>
+          <StatusBadge tone="done" title="Документ(ы) привязан(ы)">
+            ✓ {row.docs_count}
+          </StatusBadge>
         ) : (
-          <Tag color="red" title="Нет привязанного документа">
+          <StatusBadge tone="danger" title="Нет привязанного документа">
             нет
-          </Tag>
+          </StatusBadge>
         ),
     },
     {

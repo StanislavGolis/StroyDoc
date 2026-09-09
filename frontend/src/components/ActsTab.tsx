@@ -27,6 +27,7 @@ import dayjs, { type Dayjs } from "dayjs";
 import { actsApi, itemsApi } from "@/lib/api";
 import { formatDate } from "@/lib/labels";
 import type { Act, ActType, SourceItem } from "@/lib/types";
+import { StatusBadge } from "@/components/StatusBadge";
 
 const ACT_TYPE_LABELS: Record<ActType, string> = {
   avk: "Акт входного контроля",
@@ -183,7 +184,7 @@ export function ActsTab({ objectId }: Props) {
               .catch((err: unknown) => message.error(err instanceof Error ? err.message : "Ошибка"))
           }
         >
-          {s === "draft" ? <Tag color="#eab308">Черновик</Tag> : <Tag color="#22c55e">Готов</Tag>}
+          {s === "draft" ? <StatusBadge tone="warn">Черновик</StatusBadge> : <StatusBadge tone="done">Готов</StatusBadge>}
         </Button>
       ),
     },
