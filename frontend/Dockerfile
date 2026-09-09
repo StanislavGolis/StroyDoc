@@ -5,6 +5,9 @@ RUN npm ci
 
 FROM node:22-alpine AS build
 WORKDIR /app
+# Цель прокси для /api/* запекается в билд (Next.js rewrites)
+ARG API_PROXY_TARGET=http://localhost:8000
+ENV API_PROXY_TARGET=$API_PROXY_TARGET
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1

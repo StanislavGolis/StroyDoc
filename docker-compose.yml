@@ -74,7 +74,11 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Внутри compose-сети backend доступен по имени сервиса api
+        API_PROXY_TARGET: http://api:8000
     environment:
       API_PROXY_TARGET: http://api:8000
     depends_on:
