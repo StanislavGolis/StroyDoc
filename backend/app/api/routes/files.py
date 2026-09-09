@@ -279,6 +279,7 @@ def parse_file(
         from sqlalchemy import delete
 
         db.execute(delete(SourceItem).where(SourceItem.source_file_id == of.id))
+        categories: set[str] = set()
         for rec in records:
             from decimal import Decimal
 
@@ -301,12 +302,24 @@ def parse_file(
                 ),
                 mass=str(rec["mass"]) if rec.get("mass") else None,
                 notes=str(rec["notes"]) if rec.get("notes") else None,
+                full_code=str(rec["full_code"]) if rec.get("full_code") else None,
+                page_number=rec.get("page_number"),
             )
+            if rec.get("category"):
+                categories.add(str(rec["category"]))
             db.add(item)
         of.parsed_items = len(records)
         of.status = ParseStatus.DONE
         db.add(of)
         db.commit()
+        db.refresh(of)
+        # категория поставки, распознанная с листов, попадает в шифр (если ещё не задана)
+        if of.section_id and categories:
+            db.refresh(of, ["section"])
+            if of.section is not None and not of.section.category:
+                of.section.category = sorted(categories)[0][:100]
+                db.add(of.section)
+                db.commit()
         db.refresh(of)
         return of
     except HTTPException:

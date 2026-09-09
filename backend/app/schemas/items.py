@@ -7,6 +7,14 @@ from app.models.enums import ItemSource
 from app.schemas.sections import SectionBrief
 
 
+class TrackedBulkRequest(BaseModel):
+    """Массовое включение/выключение отслеживания позиций."""
+
+    tracked: bool
+    section_id: int | None = None
+    ids: list[int] | None = None
+
+
 class SourceItemRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -26,4 +34,24 @@ class SourceItemRead(BaseModel):
     quantity: Decimal | None
     mass: str | None
     notes: str | None
+    full_code: str | None
+    page_number: int | None
+    tracked: bool
     created_at: datetime
+
+
+class SourceItemUpdate(BaseModel):
+    """Инженер правит позицию «как в документе» и управляет признаком отслеживания."""
+
+    position: str | None = None
+    name: str | None = None
+    mark: str | None = None
+    doc_ref: str | None = None
+    product_code: str | None = None
+    supplier: str | None = None
+    unit: str | None = None
+    quantity: Decimal | None = None
+    mass: str | None = None
+    notes: str | None = None
+    full_code: str | None = None
+    tracked: bool | None = None

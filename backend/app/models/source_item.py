@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, utcnow
@@ -45,6 +45,10 @@ class SourceItem(Base):
     quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 3), nullable=True)  # Кол.
     mass: Mapped[str | None] = mapped_column(Text, nullable=True)  # Масса 1 ед. (как в документе)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)  # Примечания
+    # Полный шифр листа спецификации, напр. «00819.РП.0.000.0-ТСО.СО1»
+    full_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)  # страница в исходном PDF
+    tracked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
 
     source_file: Mapped["ObjectFile"] = relationship(back_populates="items")  # noqa: F821

@@ -189,6 +189,29 @@ _ANCHOR_LABELS = [
 
 _POS_RE = re.compile(r"^\d{1,5}$|^\d{1,4}[а-яa-z]$|^[IVXLCDM]{1,6}$")
 
+# Полный шифр листа: token вида «00819.РП.0.000.0-ТСО.СО1» (без пробелов, заканчивается .СО\d+)
+_FULL_CODE_RE = re.compile(r"(?:^|\s)([^\s]*\.СО\d+)")
+
+
+def _page_meta(text: str) -> tuple[str | None, str | None]:
+    """Определяет полный шифр листа и категорию поставки по тексту страницы."""
+    full_code: str | None = None
+    for m in _FULL_CODE_RE.finditer(text):
+        candidate = m.group(1).strip().strip(".,;")
+        # отбрасываем ложные срабатывания (короткий мусор без букв)
+        if len(candidate) >= 5 and any(ch.isalpha() for ch in candidate):
+            full_code = candidate
+            break
+    category: str | None = None
+    low = text.lower()
+    if "обменн" in low:
+        category = "Обменный фонд"
+    elif "подрядчик" in low:
+        category = "Поставка подрядчика"
+    elif "заказчик" in low:
+        category = "Поставка заказчика"
+    return full_code, category
+
 
 def _line_words(words: list[tuple], tol: float = 3.0) -> list[list[tuple]]:
     """Группирует слова в физические строки по координате y0."""
@@ -305,7 +328,8 @@ def parse_spec_pdf_bytes(data: bytes) -> list[dict]:
                 rec["row_number"] = row_counter
                 results.append(rec)
 
-        for page in doc:
+        for page_no, page in enumerate(doc, start=1):
+            full_code, category = _page_meta(page.get_text())
             table = _extract_page_table(page)
             page_records: list[dict] = []
             if table.columns and table.rows:
@@ -335,6 +359,9 @@ def parse_spec_pdf_bytes(data: bytes) -> list[dict]:
                 page_records = _heuristic_page(page)
             for rec in page_records:
                 rec["quantity_value"] = _to_decimal(str(rec["quantity"])) if rec.get("quantity") else None
+                rec["full_code"] = full_code
+                rec["category"] = category
+                rec["page_number"] = page_no
             _store(page_records)
     finally:
         doc.close()
