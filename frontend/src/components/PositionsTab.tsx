@@ -5,16 +5,24 @@ import {
   App as AntApp,
   Button,
   Checkbox,
+  Collapse,
+  Empty,
   Form,
   Input,
   InputNumber,
   Modal,
   Segmented,
   Space,
+  Spin,
   Table,
+  Tag,
   Typography,
 } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
+import {
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { itemsApi } from "@/lib/api";
 import type { SourceItem } from "@/lib/types";
@@ -73,6 +81,7 @@ export function PositionsTab({ objectId }: Props) {
   const [loading, setLoading] = useState(true);
   const [trackedFilter, setTrackedFilter] = useState<string>("tracked");
   const [q, setQ] = useState("");
+  const [expanded, setExpanded] = useState<string[]>([]);
   const [detail, setDetail] = useState<SourceItem | null>(null);
   const [detailForm] = Form.useForm();
 
@@ -103,6 +112,42 @@ export function PositionsTab({ objectId }: Props) {
         .some((v) => String(v).toLowerCase().includes(needle))
     );
   }, [items, q]);
+
+  interface Group {
+    key: string;
+    label: string;
+    subs: string[];
+    items: SourceItem[];
+  }
+
+  const groups = useMemo<Group[]>(() => {
+    const map = new Map<string, Group>();
+    for (const it of visible) {
+      const fc = it.full_code?.trim();
+      const m = fc ? fc.match(/^(.*?)\.(СО\d+)$/i) : null;
+      const prefix = m ? m[1] : fc || "Без шифра";
+      const suffix = m ? m[2] : null;
+      let g = map.get(prefix);
+      if (!g) {
+        g = { key: prefix, label: prefix, subs: [], items: [] };
+        map.set(prefix, g);
+      }
+      g.items.push(it);
+      if (suffix && !g.subs.includes(suffix)) g.subs.push(suffix);
+    }
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "ru"));
+  }, [visible]);
+
+  const groupTracked = (group: Group, tracked: boolean) => {
+    const ids = group.items.map((i) => i.id);
+    void itemsApi
+      .setTracked(objectId, { tracked, ids })
+      .then((r) => {
+        message.success(`Обновлено позиций: ${r.updated}`);
+        void load();
+      })
+      .catch((err: unknown) => message.error(err instanceof Error ? err.message : "Ошибка"));
+  };
 
   const applyPatch = async (id: number, patch: Record<string, unknown>) => {
     try {
@@ -146,7 +191,6 @@ export function PositionsTab({ objectId }: Props) {
       title: "",
       key: "tracked",
       width: 40,
-      fixed: "left",
       render: (_, row) => (
         <Checkbox
           checked={row.tracked}
@@ -159,7 +203,6 @@ export function PositionsTab({ objectId }: Props) {
       title: "Полный шифр",
       dataIndex: "full_code",
       width: 280,
-      fixed: "left",
       render: (v: string | null, row) => (
         <TextEdit value={v} width={270} onCommit={(s) => void applyPatch(row.id, { full_code: s || null })} />
       ),
@@ -215,7 +258,6 @@ export function PositionsTab({ objectId }: Props) {
       title: "Подробнее",
       key: "detail",
       width: 120,
-      fixed: "right",
       render: (_, row) => (
         <Button size="small" onClick={() => openDetail(row)}>
           ТУ/код/поставщик
@@ -250,16 +292,56 @@ export function PositionsTab({ objectId }: Props) {
         </Button>
       </Space>
 
-      <Table<SourceItem>
-        rowKey="id"
-        loading={loading}
-        columns={columns}
-        dataSource={visible}
-        size="small"
-        scroll={{ x: 1400 }}
-        pagination={{ pageSize: 50, showTotal: (t) => `Позиций: ${t}` }}
-        locale={{ emptyText: "Позиций нет — загрузите спецификацию и нажмите «Распарсить» во вкладке «Файлы»" }}
-      />
+      {loading ? (
+        <div style={{ padding: 40, textAlign: "center" }}>
+          <Spin />
+        </div>
+      ) : groups.length === 0 ? (
+        <Empty description="Позиций нет — загрузите спецификацию и нажмите «Распарсить» во вкладке «Файлы»" />
+      ) : (
+        <Collapse
+          ghost
+          expandIconPosition="end"
+          activeKey={q.trim() ? groups.map((g) => g.key) : expanded}
+          onChange={(keys) => setExpanded((keys as string[]) ?? [])}
+          items={groups.map((g) => ({
+            key: g.key,
+            label: (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
+                <Typography.Text strong style={{ fontSize: 15, fontFamily: "monospace" }}>
+                  {g.label}
+                </Typography.Text>
+                <Tag color="blue">позиций: {g.items.length}</Tag>
+                {g.subs.map((s) => (
+                  <Tag key={s} color="geekblue">
+                    {s}
+                  </Tag>
+                ))}
+                <div style={{ marginLeft: "auto" }} onClick={(e) => e.stopPropagation()}>
+                  <Space>
+                    <Button size="small" icon={<EyeOutlined />} title="Показывать в Мастер-списке" onClick={() => groupTracked(g, true)}>
+                      Показать
+                    </Button>
+                    <Button size="small" danger icon={<EyeInvisibleOutlined />} title="Скрыть из Мастер-списка" onClick={() => groupTracked(g, false)}>
+                      Скрыть
+                    </Button>
+                  </Space>
+                </div>
+              </div>
+            ),
+            children: (
+              <Table<SourceItem>
+                rowKey="id"
+                columns={columns}
+                dataSource={g.items}
+                size="small"
+                scroll={{ x: 1400 }}
+                pagination={{ pageSize: 50 }}
+              />
+            ),
+          }))}
+        />
+      )}
 
       <Modal
         title={detail ? `Позиция ${detail.position ?? detail.row_number} — доп. поля` : ""}
