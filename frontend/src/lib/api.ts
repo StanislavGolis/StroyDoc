@@ -4,6 +4,7 @@ import type {
   Assignment,
   ConstructionObject,
   CreatedUserResponse,
+  DashboardSummary,
   DocKind,
   IncomingDoc,
   ObjectFile,
@@ -384,6 +385,10 @@ export const actsApi = {
     a.click();
     URL.revokeObjectURL(url);
   },
+};
+
+export const dashboardApi = {
+  summary: () => request<DashboardSummary>("/dashboard/summary"),
 };
 
 // ---------- Users ----------

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { App as AntApp, Avatar, Button, Layout, Menu, Spin, Tag, Typography } from "antd";
 import {
   ApartmentOutlined,
+  DashboardOutlined,
   LogoutOutlined,
   TeamOutlined,
   UserOutlined,
@@ -60,6 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const mainMenu = [
+    ...(isManager ? [{ key: "/dashboard", icon: <DashboardOutlined />, label: "Дашборд" }] : []),
     { key: "/objects", icon: <ApartmentOutlined />, label: "Объекты" },
     ...(isManager ? [{ key: "/users", icon: <TeamOutlined />, label: "Пользователи" }] : []),
   ];

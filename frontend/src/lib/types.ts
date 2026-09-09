@@ -133,3 +133,30 @@ export interface Act {
   created_at: string;
 }
 
+export interface ObjectDashItem {
+  object_id: number;
+  name: string;
+  code: string | null;
+  status: string;
+  tracked_items: number;
+  items_with_docs: number;
+  items_without_docs: number;
+  ready_pct: number;
+  acts_total: number;
+}
+
+export interface DashboardSummary {
+  objects: ObjectDashItem[];
+  totals: {
+    objects_total: number;
+    objects_active: number;
+    tracked_items: number;
+    items_with_docs: number;
+    items_without_docs: number;
+    ready_pct: number;
+    acts_total: number;
+    acts_by_type: Record<string, number>;
+    passports: number;
+  };
+}
+
