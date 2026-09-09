@@ -3,6 +3,7 @@ name: stroydoc
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-stroydoc}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stroydoc}
@@ -19,6 +20,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
     healthcheck:
@@ -29,6 +31,7 @@ services:
 
   minio:
     image: minio/minio:latest
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -41,6 +44,7 @@ services:
 
   api:
     build: ./backend
+    restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-stroydoc}:${POSTGRES_PASSWORD:-stroydoc}@db:5432/${POSTGRES_DB:-stroydoc}
@@ -67,6 +71,7 @@ services:
 
   worker:
     build: ./backend
+    restart: unless-stopped
     command: celery -A app.celery_app worker -l info --pool=solo
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-stroydoc}:${POSTGRES_PASSWORD:-stroydoc}@db:5432/${POSTGRES_DB:-stroydoc}
@@ -95,6 +100,7 @@ services:
       - api
     ports:
       - "3000:3000"
+    restart: unless-stopped
 
 volumes:
   pgdata:
