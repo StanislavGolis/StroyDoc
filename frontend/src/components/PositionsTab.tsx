@@ -79,12 +79,6 @@ function normKey(s: string | null): string {
   return (s ?? "").toLowerCase().replace(/[^0-9a-zа-яё]/gi, "");
 }
 
-function prefixOf(item: SourceItem): string {
-  const fc = item.full_code?.trim() ?? "";
-  const m = fc.match(/^(.*?)\.(СО\d+)$/i);
-  return m ? m[1] : fc || "Без шифра";
-}
-
 export function PositionsTab({ objectId }: Props) {
   const { message } = AntApp.useApp();
   const [items, setItems] = useState<SourceItem[]>([]);
@@ -113,39 +107,15 @@ export function PositionsTab({ objectId }: Props) {
     void load();
   }, [load]);
 
-  // Словарь «возможных дублей»: одинаковое наименование+марка+ед. в разных шифрах
-  const dupMap = useMemo(() => {
-    const buckets = new Map<string, { ids: number[]; prefixes: Set<string> }>();
-    for (const it of items) {
-      const key = [normKey(it.name), normKey(it.mark), normKey(it.unit)].join("#");
-      let b = buckets.get(key);
-      if (!b) {
-        b = { ids: [], prefixes: new Set<string>() };
-        buckets.set(key, b);
-      }
-      b.ids.push(it.id);
-      b.prefixes.add(prefixOf(it));
-    }
-    const map = new Map<number, number>();
-    for (const b of buckets.values()) {
-      if (b.prefixes.size > 1) {
-        for (const id of b.ids) map.set(id, b.prefixes.size);
-      }
-    }
-    return map;
-  }, [items]);
-
   const visible = useMemo(() => {
-    let base = items;
-    if (trackedFilter === "dups") base = items.filter((it) => dupMap.has(it.id));
     const needle = q.trim().toLowerCase();
-    if (!needle) return base;
-    return base.filter((it) =>
+    if (!needle) return items;
+    return items.filter((it) =>
       [it.full_code, it.position, it.name, it.mark, it.product_code, it.supplier]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle))
     );
-  }, [items, q, dupMap, trackedFilter]);
+  }, [items, q]);
 
   interface Group {
     key: string;
@@ -220,6 +190,54 @@ export function PositionsTab({ objectId }: Props) {
     }
   };
 
+  const [merged, setMerged] = useState<Record<string, boolean>>({});
+
+  interface MergedRow {
+    key: string;
+    name: string;
+    mark: string | null;
+    unit: string | null;
+    qty: number | null;
+    positions: string;
+    count: number;
+  }
+
+  function buildMergedRows(rows: SourceItem[]): MergedRow[] {
+    const map = new Map<string, { name: string; mark: string | null; unit: string | null; qty: number | null; pos: Set<string>; count: number }>();
+    for (const it of rows) {
+      const key = [normKey(it.name), normKey(it.mark), normKey(it.unit)].join("#");
+      let rec = map.get(key);
+      if (!rec) {
+        rec = { name: it.name, mark: it.mark, unit: it.unit, qty: it.quantity == null ? null : Number(it.quantity), pos: new Set<string>(), count: 0 };
+        map.set(key, rec);
+      } else if (it.quantity != null) {
+        rec.qty = (rec.qty ?? 0) + Number(it.quantity);
+      }
+      rec.count += 1;
+      if (it.position) rec.pos.add(it.position);
+    }
+    return [...map.values()]
+      .sort((a, b) => a.name.localeCompare(b.name, "ru"))
+      .map((r) => ({
+        key: [r.name, r.mark, r.unit].join("#"),
+        name: r.name,
+        mark: r.mark,
+        unit: r.unit,
+        qty: r.qty,
+        positions: [...r.pos].join(", "),
+        count: r.count,
+      }));
+  }
+
+  const mergedColumns: ColumnsType<MergedRow> = [
+    { title: "Наименование", dataIndex: "name", width: 380 },
+    { title: "Тип / марка", dataIndex: "mark", width: 240, render: (v: string | null) => v ?? "—" },
+    { title: "Ед.", dataIndex: "unit", width: 70, render: (v: string | null) => v ?? "—" },
+    { title: "Кол-во (сумма)", dataIndex: "qty", width: 120, render: (v: number | null) => (v == null ? "—" : String(v)) },
+    { title: "Позиции в шифре", dataIndex: "positions", render: (v: string) => v || "—" },
+    { title: "Строк объединено", dataIndex: "count", width: 120, render: (v: number) => (v > 1 ? <Tag color="geekblue">из {v} строк</Tag> : <Tag>1</Tag>) },
+  ];
+
   const columns: ColumnsType<SourceItem> = [
     {
       title: "",
@@ -232,19 +250,6 @@ export function PositionsTab({ objectId }: Props) {
           title={row.tracked ? "Отслеживаем" : "Скрыто из Мастер-списка"}
         />
       ),
-    },
-    {
-      title: "⚑",
-      key: "dup",
-      width: 44,
-      render: (_, row) => {
-        const n = dupMap.get(row.id);
-        return n ? (
-          <Tag color="orange" style={{ cursor: "help" }} title={`Возможный дубль — встречается в ${n} шифрах`}>
-            {n}
-          </Tag>
-        ) : null;
-      },
     },
     {
       title: "Полный шифр",
@@ -331,7 +336,6 @@ export function PositionsTab({ objectId }: Props) {
               { label: "Отслеживаем", value: "tracked" },
               { label: "Все", value: "all" },
               { label: "Скрытые", value: "untracked" },
-              { label: "⚑ Дубли", value: "dups" },
             ]}
           />
         </Space>
@@ -350,7 +354,7 @@ export function PositionsTab({ objectId }: Props) {
         <Collapse
           ghost
           expandIconPosition="end"
-          activeKey={q.trim() || trackedFilter === "dups" ? groups.map((g) => g.key) : expanded}
+          activeKey={q.trim() ? groups.map((g) => g.key) : expanded}
           onChange={(keys) => setExpanded((keys as string[]) ?? [])}
           items={groups.map((g) => ({
             key: g.key,
@@ -378,14 +382,37 @@ export function PositionsTab({ objectId }: Props) {
               </div>
             ),
             children: (
-              <Table<SourceItem>
-                rowKey="id"
-                columns={columns}
-                dataSource={g.items}
-                size="small"
-                scroll={{ x: 1400 }}
-                pagination={{ pageSize: 50 }}
-              />
+              <div>
+                <Space style={{ marginBottom: 8 }} onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={Boolean(merged[g.key])}
+                    onChange={(e) => setMerged((prev) => ({ ...prev, [g.key]: e.target.checked }))}
+                  >
+                    Объединить одинаковое оборудование (сумма количества по позициям)
+                  </Checkbox>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    не изменяет строки документа, только вид
+                  </Typography.Text>
+                </Space>
+                {merged[g.key] ? (
+                  <Table<MergedRow>
+                    rowKey="key"
+                    columns={mergedColumns}
+                    dataSource={buildMergedRows(g.items)}
+                    size="small"
+                    pagination={{ pageSize: 50 }}
+                  />
+                ) : (
+                  <Table<SourceItem>
+                    rowKey="id"
+                    columns={columns}
+                    dataSource={g.items}
+                    size="small"
+                    scroll={{ x: 1400 }}
+                    pagination={{ pageSize: 50 }}
+                  />
+                )}
+              </div>
             ),
           }))}
         />
