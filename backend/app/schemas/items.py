@@ -37,6 +37,7 @@ class SourceItemRead(BaseModel):
     full_code: str | None
     page_number: int | None
     tracked: bool
+    docs_count: int = 0
     created_at: datetime
 
 

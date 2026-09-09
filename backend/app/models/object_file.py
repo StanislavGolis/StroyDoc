@@ -40,6 +40,7 @@ class ObjectFile(Base):
     object: Mapped["ConstructionObject"] = relationship(back_populates="files")  # noqa: F821
     section: Mapped["RdSection | None"] = relationship(back_populates="files")  # noqa: F821
     uploader: Mapped["User | None"] = relationship(foreign_keys=[uploader_id])  # noqa: F821
+    doc: Mapped["IncomingDoc | None"] = relationship(back_populates="file")  # noqa: F821
     items: Mapped[list["SourceItem"]] = relationship(  # noqa: F821
         back_populates="source_file", cascade="all, delete-orphan"
     )

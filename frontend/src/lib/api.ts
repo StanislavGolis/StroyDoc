@@ -3,6 +3,7 @@ import type {
   ConstructionObject,
   CreatedUserResponse,
   DocKind,
+  IncomingDoc,
   ObjectFile,
   ObjectStatus,
   ResetPasswordResponse,
@@ -261,6 +262,82 @@ export const itemsApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+};
+
+// ---------- Документы (пул паспортов/сертификатов) ----------
+export interface DocListOptions {
+  q?: string;
+  item_id?: number;
+}
+
+export const docsApi = {
+  list: (objectId: number, opts?: DocListOptions) => {
+    const query = new URLSearchParams();
+    if (opts?.q) query.set("q", opts.q);
+    if (opts?.item_id) query.set("item_id", String(opts.item_id));
+    const qs = query.toString();
+    return request<IncomingDoc[]>(`/objects/${objectId}/docs${qs ? `?${qs}` : ""}`);
+  },
+
+  async upload(
+    objectId: number,
+    file: File,
+    extra?: { doc_number?: string; doc_title?: string }
+  ): Promise<IncomingDoc> {
+    const fd = new FormData();
+    if (extra?.doc_number) fd.append("doc_number", extra.doc_number);
+    if (extra?.doc_title) fd.append("doc_title", extra.doc_title);
+    fd.append("file", file);
+
+    const doFetch = (token?: string | null) => {
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return fetch(`/api/v1/objects/${objectId}/docs`, {
+        method: "POST",
+        headers,
+        body: fd,
+        credentials: "include",
+      });
+    };
+
+    let resp = await doFetch(accessToken);
+    if (resp.status === 401) {
+      const ok = await refreshSession();
+      if (ok) resp = await doFetch(accessToken);
+    }
+    if (!resp.ok) {
+      let detail = `Ошибка ${resp.status}`;
+      try {
+        const body = await resp.json();
+        if (typeof body?.detail === "string") detail = body.detail;
+      } catch {
+        /* не JSON */
+      }
+      throw new ApiError(resp.status, detail);
+    }
+    return (await resp.json()) as IncomingDoc;
+  },
+
+  attach: (objectId: number, docId: number, itemIds: number[]) =>
+    request<{ linked_items: number }>(`/objects/${objectId}/docs/${docId}/attach`, {
+      method: "POST",
+      body: JSON.stringify({ item_ids: itemIds }),
+    }),
+
+  detach: (objectId: number, docId: number, itemIds: number[]) =>
+    request<{ linked_items: number }>(`/objects/${objectId}/docs/${docId}/detach`, {
+      method: "POST",
+      body: JSON.stringify({ item_ids: itemIds }),
+    }),
+
+  remove: (objectId: number, docId: number) =>
+    request<void>(`/objects/${objectId}/docs/${docId}`, { method: "DELETE" }),
+
+  async download(objectId: number, doc: IncomingDoc): Promise<void> {
+    if (!doc.file_id) return;
+    const fake = { id: doc.file_id, original_filename: doc.original_filename ?? "doc.pdf" } as ObjectFile;
+    await filesApi.download(objectId, fake);
+  },
 };
 
 // ---------- Users ----------

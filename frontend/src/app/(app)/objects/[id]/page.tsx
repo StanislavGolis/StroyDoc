@@ -22,6 +22,7 @@ import type { Assignment, ConstructionObject, User } from "@/lib/types";
 import { ObjectFormModal } from "@/components/ObjectFormModal";
 import { FilesTab } from "@/components/FilesTab";
 import { PositionsTab } from "@/components/PositionsTab";
+import { DocsTab } from "@/components/DocsTab";
 
 export default function ObjectDetailPage() {
   const params = useParams<{ id: string }>();
@@ -207,6 +208,7 @@ export default function ObjectDetailPage() {
           { key: "info", label: "Информация", children: infoTab },
           { key: "assignments", label: "Назначения", children: assignmentsTab },
           { key: "files", label: "Файлы", children: <FilesTab objectId={object.id} /> },
+          { key: "docs", label: "Документы (паспорта)", children: <DocsTab objectId={object.id} /> },
           { key: "items", label: "Позиции (РД)", children: <PositionsTab objectId={object.id} /> },
         ]}
       />

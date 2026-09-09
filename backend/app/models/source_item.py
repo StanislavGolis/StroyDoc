@@ -53,3 +53,6 @@ class SourceItem(Base):
 
     source_file: Mapped["ObjectFile"] = relationship(back_populates="items")  # noqa: F821
     section: Mapped["RdSection | None"] = relationship(foreign_keys=[section_id])  # noqa: F821
+    docs: Mapped[list["IncomingDoc"]] = relationship(  # noqa: F821
+        secondary="incoming_doc_item", back_populates="items"
+    )

@@ -100,5 +100,19 @@ export interface SourceItem {
   full_code: string | null;
   page_number: number | null;
   tracked: boolean;
+  docs_count: number;
+}
+
+export interface IncomingDoc {
+  id: number;
+  object_id: number;
+  doc_number: string | null;
+  doc_title: string | null;
+  doc_date: string | null;
+  file_id: number | null;
+  original_filename: string | null;
+  size_bytes: number | null;
+  linked_items: number;
+  created_at: string;
 }
 

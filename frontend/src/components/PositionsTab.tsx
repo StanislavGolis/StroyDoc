@@ -252,6 +252,21 @@ export function PositionsTab({ objectId }: Props) {
       ),
     },
     {
+      title: "Паспорт",
+      key: "docs",
+      width: 90,
+      render: (_, row) =>
+        row.docs_count > 0 ? (
+          <Tag color="green" title="Документ(ы) привязан(ы)">
+            {row.docs_count}
+          </Tag>
+        ) : (
+          <Tag color="red" title="Нет привязанного документа">
+            нет
+          </Tag>
+        ),
+    },
+    {
       title: "Полный шифр",
       dataIndex: "full_code",
       width: 280,

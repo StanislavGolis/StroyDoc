@@ -1,12 +1,12 @@
 """Позиции, извлечённые из загруженных документов (РД-спецификации, сметы)."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user, require_object_access
 from app.db.session import get_db
-from app.models import ConstructionObject, SourceItem, User
+from app.models import ConstructionObject, SourceItem, User, incoming_doc_item
 from app.models.enums import ItemSource
 from app.schemas.items import SourceItemRead, SourceItemUpdate, TrackedBulkRequest
 
@@ -36,7 +36,22 @@ def list_items(
     if tracked is not None:
         stmt = stmt.where(SourceItem.tracked == tracked)
     stmt = stmt.order_by(SourceItem.section_id, SourceItem.row_number)
-    return list(db.scalars(stmt))
+    rows = list(db.scalars(stmt))
+    counts: dict[int, int] = {}
+    if rows:
+        ids = [r.id for r in rows]
+        for item_id, cnt in db.execute(
+            select(
+                incoming_doc_item.c.source_item_id, func.count(incoming_doc_item.c.incoming_doc_id)
+            )
+            .where(incoming_doc_item.c.source_item_id.in_(ids))
+            .group_by(incoming_doc_item.c.source_item_id)
+        ):
+            counts[item_id] = cnt
+    return [
+        SourceItemRead.model_validate(it).model_copy(update={"docs_count": counts.get(it.id, 0)})
+        for it in rows
+    ]
 
 
 @router.post("/set-tracked", response_model=dict)
