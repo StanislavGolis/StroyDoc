@@ -55,10 +55,20 @@ export type DocKind = "spec" | "estimate" | "passport" | "other";
 
 export type ParseStatusType = "uploaded" | "parsing" | "done" | "error";
 
+export interface Section {
+  id: number;
+  object_id: number;
+  code: string;
+  name: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
 export interface ObjectFile {
   id: number;
   object_id: number;
   kind: DocKind;
+  section: { id: number; code: string; name: string | null } | null;
   original_filename: string;
   content_type: string;
   size_bytes: number;
@@ -75,6 +85,7 @@ export interface SourceItem {
   object_id: number;
   source_file_id: number | null;
   source: "rd" | "estimate";
+  section: { id: number; code: string; name: string | null } | null;
   row_number: number;
   position: string | null;
   name: string;
@@ -86,5 +97,8 @@ export interface SourceItem {
   quantity: number | string | null;
   mass: string | null;
   notes: string | null;
+  full_code: string | null;
+  page_number: number | null;
+  tracked: boolean;
 }
 

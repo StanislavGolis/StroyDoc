@@ -6,6 +6,7 @@ import type {
   ObjectFile,
   ObjectStatus,
   ResetPasswordResponse,
+  Section,
   SourceItem,
   TokenResponse,
   User,
@@ -159,9 +160,10 @@ export const objectsApi = {
 export const filesApi = {
   list: (objectId: number) => request<ObjectFile[]>(`/objects/${objectId}/files`),
 
-  async upload(objectId: number, kind: DocKind, file: File): Promise<ObjectFile> {
+  async upload(objectId: number, kind: DocKind, file: File, sectionId?: number): Promise<ObjectFile> {
     const fd = new FormData();
     fd.append("kind", kind);
+    if (sectionId) fd.append("section_id", String(sectionId));
     fd.append("file", file);
 
     const doFetch = (token?: string | null) => {
@@ -199,6 +201,12 @@ export const filesApi = {
   remove: (objectId: number, fileId: number) =>
     request<void>(`/objects/${objectId}/files/${fileId}`, { method: "DELETE" }),
 
+  move: (objectId: number, fileId: number, sectionId: number | null) =>
+    request<ObjectFile>(`/objects/${objectId}/files/${fileId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ section_id: sectionId }),
+    }),
+
   async download(objectId: number, file: ObjectFile): Promise<void> {
     const headers: Record<string, string> = {};
     if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
@@ -217,11 +225,42 @@ export const filesApi = {
   },
 };
 
+export const sectionsApi = {
+  list: (objectId: number) => request<Section[]>(`/objects/${objectId}/sections`),
+  create: (objectId: number, payload: { code: string; name?: string; sort_order?: number }) =>
+    request<Section>(`/objects/${objectId}/sections`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  remove: (objectId: number, sectionId: number) =>
+    request<void>(`/objects/${objectId}/sections/${sectionId}`, { method: "DELETE" }),
+};
+
+export interface ItemFilters {
+  section?: number;
+  tracked?: boolean;
+  source_file?: number;
+}
+
 export const itemsApi = {
-  list: (objectId: number, sourceFile?: number) => {
-    const qs = sourceFile ? `?source_file=${sourceFile}` : "";
-    return request<SourceItem[]>(`/objects/${objectId}/items${qs}`);
+  list: (objectId: number, filters?: ItemFilters) => {
+    const query = new URLSearchParams();
+    if (filters?.section) query.set("section", String(filters.section));
+    if (filters?.tracked !== undefined) query.set("tracked", String(filters.tracked));
+    if (filters?.source_file) query.set("source_file", String(filters.source_file));
+    const qs = query.toString();
+    return request<SourceItem[]>(`/objects/${objectId}/items${qs ? `?${qs}` : ""}`);
   },
+  update: (objectId: number, itemId: number, patch: Record<string, unknown>) =>
+    request<SourceItem>(`/objects/${objectId}/items/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  setTracked: (objectId: number, payload: { tracked: boolean; section_id?: number; ids?: number[] }) =>
+    request<{ updated: number }>(`/objects/${objectId}/items/set-tracked`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 
 // ---------- Users ----------
