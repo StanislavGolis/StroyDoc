@@ -96,6 +96,35 @@ def test_docs_only_pdf(client, make_user, login):
     assert bad.status_code == 400
 
 
+def test_reparse_cleans_previous_items(client, make_user, login):
+    """PO-10: повторный парсинг перезаписывает позиции и корректно отвязывает документы."""
+    obj, headers, items = _prepared(client, make_user, login)
+    files = client.get(f"{URL}/{obj['id']}/files", headers=headers).json()
+    file_id = files[0]["id"]
+
+    doc = client.post(
+        f"{URL}/{obj['id']}/docs",
+        files={"file": ("pass.pdf", b"%PDF-1.7\npass" * 100, "application/pdf")},
+        headers=headers,
+    ).json()
+    client.post(
+        f"{URL}/{obj['id']}/docs/{doc['id']}/attach",
+        json={"item_ids": [items[0]["id"]]},
+        headers=headers,
+    )
+
+    rep = client.post(f"{URL}/{obj['id']}/files/{file_id}/parse", headers=headers)
+    assert rep.status_code == 200
+    assert rep.json()["parsed_items"] == 2
+
+    after = client.get(f"{URL}/{obj['id']}/items", headers=headers).json()
+    assert len(after) == 2  # старых позиций не осталось
+
+    docs_after = client.get(f"{URL}/{obj['id']}/docs", headers=headers).json()
+    assert len(docs_after) == 1
+    assert docs_after[0]["linked_items"] == 0
+
+
 def test_attach_rejects_foreign_item(client, make_user, login):
     obj, headers, items = _prepared(client, make_user, login)
     client.post(URL, json={"name": "Чужой"}, headers=headers)

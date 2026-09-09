@@ -11,7 +11,15 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.deps import get_current_user, require_object_access
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models import ConstructionObject, ObjectFile, RdSection, SourceItem, User
+from app.models import (
+    ConstructionObject,
+    ObjectFile,
+    RdSection,
+    SourceItem,
+    User,
+    act_item,
+    incoming_doc_item,
+)
 from app.models.enums import DocKind, ItemSource, ParseStatus
 from app.schemas.files import FileRead, FileSectionUpdate
 from app.storage import get_storage
@@ -278,6 +286,10 @@ def parse_file(
         # Перезаписываем результат разбора для этого файла
         from sqlalchemy import delete
 
+        old_ids = list(db.scalars(select(SourceItem.id).where(SourceItem.source_file_id == of.id)))
+        if old_ids:
+            db.execute(delete(incoming_doc_item).where(incoming_doc_item.c.source_item_id.in_(old_ids)))
+            db.execute(delete(act_item).where(act_item.c.source_item_id.in_(old_ids)))
         db.execute(delete(SourceItem).where(SourceItem.source_file_id == of.id))
         categories: set[str] = set()
         for rec in records:
