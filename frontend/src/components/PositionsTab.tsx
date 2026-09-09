@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   App as AntApp,
   Button,
@@ -10,16 +10,14 @@ import {
   InputNumber,
   Modal,
   Segmented,
-  Select,
   Space,
   Table,
-  Tag,
   Typography,
 } from "antd";
-import { EyeInvisibleOutlined, EyeOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { itemsApi, sectionsApi } from "@/lib/api";
-import type { Section, SourceItem } from "@/lib/types";
+import { itemsApi } from "@/lib/api";
+import type { SourceItem } from "@/lib/types";
 
 interface TextEditProps {
   value: string | null;
@@ -72,35 +70,39 @@ interface Props {
 export function PositionsTab({ objectId }: Props) {
   const { message } = AntApp.useApp();
   const [items, setItems] = useState<SourceItem[]>([]);
-  const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sectionFilter, setSectionFilter] = useState<number>();
   const [trackedFilter, setTrackedFilter] = useState<string>("tracked");
+  const [q, setQ] = useState("");
   const [detail, setDetail] = useState<SourceItem | null>(null);
   const [detailForm] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [list, ss] = await Promise.all([
-        itemsApi.list(objectId, {
-          section: sectionFilter,
-          tracked: trackedFilter === "all" ? undefined : trackedFilter === "tracked",
-        }),
-        sectionsApi.list(objectId),
-      ]);
+      const list = await itemsApi.list(objectId, {
+        tracked: trackedFilter === "all" ? undefined : trackedFilter === "tracked",
+      });
       setItems(list);
-      setSections(ss);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Не удалось загрузить позиции");
     } finally {
       setLoading(false);
     }
-  }, [objectId, sectionFilter, trackedFilter, message]);
+  }, [objectId, trackedFilter, message]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const visible = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return items;
+    return items.filter((it) =>
+      [it.full_code, it.position, it.name, it.mark, it.product_code, it.supplier]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(needle))
+    );
+  }, [items, q]);
 
   const applyPatch = async (id: number, patch: Record<string, unknown>) => {
     try {
@@ -111,9 +113,7 @@ export function PositionsTab({ objectId }: Props) {
     }
   };
 
-  const toggleTracked = (item: SourceItem) => {
-    void applyPatch(item.id, { tracked: !item.tracked });
-  };
+  const toggleTracked = (item: SourceItem) => void applyPatch(item.id, { tracked: !item.tracked });
 
   const openDetail = (item: SourceItem) => {
     setDetail(item);
@@ -141,47 +141,61 @@ export function PositionsTab({ objectId }: Props) {
     }
   };
 
-  const bulkSection = (tracked: boolean) => {
-    if (!sectionFilter) {
-      message.warning("Сначала выберите шифр в фильтре");
-      return;
-    }
-    void itemsApi
-      .setTracked(objectId, { tracked, section_id: sectionFilter })
-      .then((r) => {
-        message.success(`Обновлено позиций: ${r.updated}`);
-        void load();
-      })
-      .catch((err: unknown) => message.error(err instanceof Error ? err.message : "Ошибка"));
-  };
-
   const columns: ColumnsType<SourceItem> = [
     {
       title: "",
       key: "tracked",
       width: 40,
+      fixed: "left",
       render: (_, row) => (
-        <Checkbox checked={row.tracked} onChange={() => toggleTracked(row)} title={row.tracked ? "Отслеживаем" : "Скрыто из Мастер-списка"} />
+        <Checkbox
+          checked={row.tracked}
+          onChange={() => toggleTracked(row)}
+          title={row.tracked ? "Отслеживаем" : "Скрыто из Мастер-списка"}
+        />
       ),
     },
     {
-      title: "Шифр",
-      key: "section",
-      width: 110,
-      render: (_, row) => (row.section ? <Tag>{row.section.code}</Tag> : <Tag>—</Tag>),
+      title: "Полный шифр",
+      dataIndex: "full_code",
+      width: 280,
+      fixed: "left",
+      render: (v: string | null, row) => (
+        <TextEdit value={v} width={270} onCommit={(s) => void applyPatch(row.id, { full_code: s || null })} />
+      ),
     },
-    { title: "Поз.", dataIndex: "position", width: 60, render: (v: string | null, row) => (
-      <TextEdit value={v} width={60} onCommit={(s) => void applyPatch(row.id, { position: s || null })} />
-    ) },
-    { title: "Наименование", dataIndex: "name", width: 320, render: (v: string, row) => (
-      <TextEdit value={v} width={320} onCommit={(s) => void applyPatch(row.id, { name: s })} />
-    ) },
-    { title: "Тип / марка", dataIndex: "mark", width: 220, render: (v: string | null, row) => (
-      <TextEdit value={v} width={210} onCommit={(s) => void applyPatch(row.id, { mark: s || null })} />
-    ) },
-    { title: "Ед.", dataIndex: "unit", width: 70, render: (v: string | null, row) => (
-      <TextEdit value={v} width={60} onCommit={(s) => void applyPatch(row.id, { unit: s || null })} />
-    ) },
+    {
+      title: "Поз.",
+      dataIndex: "position",
+      width: 60,
+      render: (v: string | null, row) => (
+        <TextEdit value={v} width={60} onCommit={(s) => void applyPatch(row.id, { position: s || null })} />
+      ),
+    },
+    {
+      title: "Наименование",
+      dataIndex: "name",
+      width: 320,
+      render: (v: string, row) => (
+        <TextEdit value={v} width={320} onCommit={(s) => void applyPatch(row.id, { name: s })} />
+      ),
+    },
+    {
+      title: "Тип / марка",
+      dataIndex: "mark",
+      width: 220,
+      render: (v: string | null, row) => (
+        <TextEdit value={v} width={210} onCommit={(s) => void applyPatch(row.id, { mark: s || null })} />
+      ),
+    },
+    {
+      title: "Ед.",
+      dataIndex: "unit",
+      width: 70,
+      render: (v: string | null, row) => (
+        <TextEdit value={v} width={60} onCommit={(s) => void applyPatch(row.id, { unit: s || null })} />
+      ),
+    },
     {
       title: "Кол.",
       dataIndex: "quantity",
@@ -198,17 +212,10 @@ export function PositionsTab({ objectId }: Props) {
       ),
     },
     {
-      title: "Полный шифр",
-      dataIndex: "full_code",
-      width: 230,
-      render: (v: string | null, row) => (
-        <TextEdit value={v} width={220} onCommit={(s) => void applyPatch(row.id, { full_code: s || null })} />
-      ),
-    },
-    {
       title: "Подробнее",
       key: "detail",
-      width: 110,
+      width: 120,
+      fixed: "right",
       render: (_, row) => (
         <Button size="small" onClick={() => openDetail(row)}>
           ТУ/код/поставщик
@@ -221,13 +228,12 @@ export function PositionsTab({ objectId }: Props) {
     <div>
       <Space style={{ marginBottom: 12, width: "100%", justifyContent: "space-between" }} wrap>
         <Space wrap>
-          <Select
-            placeholder="Все шифры"
+          <Input.Search
+            placeholder="Поиск по полному шифру, наименованию, марке…"
             allowClear
-            style={{ width: 180 }}
-            value={sectionFilter}
-            onChange={(v) => setSectionFilter(v)}
-            options={sections.map((s) => ({ value: s.id, label: s.code }))}
+            style={{ width: 360 }}
+            onSearch={(v) => setQ(v)}
+            onChange={(e) => !e.target.value && setQ("")}
           />
           <Segmented
             value={trackedFilter}
@@ -238,33 +244,21 @@ export function PositionsTab({ objectId }: Props) {
               { label: "Скрытые", value: "untracked" },
             ]}
           />
-          <Button icon={<ReloadOutlined />} onClick={() => void load()}>
-            Обновить
-          </Button>
         </Space>
-        {sectionFilter && (
-          <Space>
-            <Button icon={<EyeOutlined />} onClick={() => bulkSection(true)}>
-              Показывать в шифре
-            </Button>
-            <Button danger icon={<EyeInvisibleOutlined />} onClick={() => bulkSection(false)}>
-              Скрыть шифр из Мастер-списка
-            </Button>
-          </Space>
-        )}
+        <Button icon={<ReloadOutlined />} onClick={() => void load()}>
+          Обновить
+        </Button>
       </Space>
 
       <Table<SourceItem>
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={items}
+        dataSource={visible}
         size="small"
-        scroll={{ x: 1500 }}
+        scroll={{ x: 1400 }}
         pagination={{ pageSize: 50, showTotal: (t) => `Позиций: ${t}` }}
-        locale={{
-          emptyText: sectionFilter ? "В выбранном шифре нет позиций" : "Загрузите спецификацию и нажмите «Распарсить» во вкладке «Файлы»",
-        }}
+        locale={{ emptyText: "Позиций нет — загрузите спецификацию и нажмите «Распарсить» во вкладке «Файлы»" }}
       />
 
       <Modal
