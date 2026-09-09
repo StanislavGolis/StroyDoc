@@ -75,6 +75,16 @@ interface Props {
   objectId: number;
 }
 
+function normKey(s: string | null): string {
+  return (s ?? "").toLowerCase().replace(/[^0-9a-zа-яё]/gi, "");
+}
+
+function prefixOf(item: SourceItem): string {
+  const fc = item.full_code?.trim() ?? "";
+  const m = fc.match(/^(.*?)\.(СО\d+)$/i);
+  return m ? m[1] : fc || "Без шифра";
+}
+
 export function PositionsTab({ objectId }: Props) {
   const { message } = AntApp.useApp();
   const [items, setItems] = useState<SourceItem[]>([]);
@@ -88,9 +98,9 @@ export function PositionsTab({ objectId }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await itemsApi.list(objectId, {
-        tracked: trackedFilter === "all" ? undefined : trackedFilter === "tracked",
-      });
+      const tracked =
+        trackedFilter === "all" || trackedFilter === "dups" ? undefined : trackedFilter === "tracked";
+      const list = await itemsApi.list(objectId, { tracked });
       setItems(list);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Не удалось загрузить позиции");
@@ -103,15 +113,39 @@ export function PositionsTab({ objectId }: Props) {
     void load();
   }, [load]);
 
+  // Словарь «возможных дублей»: одинаковое наименование+марка+ед. в разных шифрах
+  const dupMap = useMemo(() => {
+    const buckets = new Map<string, { ids: number[]; prefixes: Set<string> }>();
+    for (const it of items) {
+      const key = [normKey(it.name), normKey(it.mark), normKey(it.unit)].join("#");
+      let b = buckets.get(key);
+      if (!b) {
+        b = { ids: [], prefixes: new Set<string>() };
+        buckets.set(key, b);
+      }
+      b.ids.push(it.id);
+      b.prefixes.add(prefixOf(it));
+    }
+    const map = new Map<number, number>();
+    for (const b of buckets.values()) {
+      if (b.prefixes.size > 1) {
+        for (const id of b.ids) map.set(id, b.prefixes.size);
+      }
+    }
+    return map;
+  }, [items]);
+
   const visible = useMemo(() => {
+    let base = items;
+    if (trackedFilter === "dups") base = items.filter((it) => dupMap.has(it.id));
     const needle = q.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter((it) =>
+    if (!needle) return base;
+    return base.filter((it) =>
       [it.full_code, it.position, it.name, it.mark, it.product_code, it.supplier]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle))
     );
-  }, [items, q]);
+  }, [items, q, dupMap, trackedFilter]);
 
   interface Group {
     key: string;
@@ -200,6 +234,19 @@ export function PositionsTab({ objectId }: Props) {
       ),
     },
     {
+      title: "⚑",
+      key: "dup",
+      width: 44,
+      render: (_, row) => {
+        const n = dupMap.get(row.id);
+        return n ? (
+          <Tag color="orange" style={{ cursor: "help" }} title={`Возможный дубль — встречается в ${n} шифрах`}>
+            {n}
+          </Tag>
+        ) : null;
+      },
+    },
+    {
       title: "Полный шифр",
       dataIndex: "full_code",
       width: 280,
@@ -284,6 +331,7 @@ export function PositionsTab({ objectId }: Props) {
               { label: "Отслеживаем", value: "tracked" },
               { label: "Все", value: "all" },
               { label: "Скрытые", value: "untracked" },
+              { label: "⚑ Дубли", value: "dups" },
             ]}
           />
         </Space>
@@ -302,7 +350,7 @@ export function PositionsTab({ objectId }: Props) {
         <Collapse
           ghost
           expandIconPosition="end"
-          activeKey={q.trim() ? groups.map((g) => g.key) : expanded}
+          activeKey={q.trim() || trackedFilter === "dups" ? groups.map((g) => g.key) : expanded}
           onChange={(keys) => setExpanded((keys as string[]) ?? [])}
           items={groups.map((g) => ({
             key: g.key,
