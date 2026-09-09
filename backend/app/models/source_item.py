@@ -28,6 +28,9 @@ class SourceItem(Base):
         ForeignKey("object_file.id", ondelete="CASCADE"), nullable=True
     )
     source: Mapped[ItemSource] = mapped_column(nullable=False, default=ItemSource.RD)
+    section_id: Mapped[int | None] = mapped_column(
+        ForeignKey("rd_section.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     row_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Поля из документа (по возможности структурированы).
@@ -45,3 +48,4 @@ class SourceItem(Base):
     created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
 
     source_file: Mapped["ObjectFile"] = relationship(back_populates="items")  # noqa: F821
+    section: Mapped["RdSection | None"] = relationship(foreign_keys=[section_id])  # noqa: F821

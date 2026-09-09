@@ -4,6 +4,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import ItemSource
+from app.schemas.sections import SectionBrief
 
 
 class SourceItemRead(BaseModel):
@@ -13,6 +14,7 @@ class SourceItemRead(BaseModel):
     object_id: int
     source_file_id: int | None
     source: ItemSource
+    section: SectionBrief | None
     row_number: int
     position: str | None
     name: str

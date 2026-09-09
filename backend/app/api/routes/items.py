@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user, require_object_access
 from app.db.session import get_db
@@ -18,14 +18,19 @@ def list_items(
     object_id: int,
     source: ItemSource | None = Query(default=None),
     source_file: int | None = Query(default=None),
+    section: int | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     obj: ConstructionObject = Depends(require_object_access),
 ) -> list[SourceItem]:
-    stmt = select(SourceItem).where(SourceItem.object_id == obj.id)
+    stmt = select(SourceItem).options(selectinload(SourceItem.section)).where(
+        SourceItem.object_id == obj.id
+    )
     if source is not None:
         stmt = stmt.where(SourceItem.source == source)
     if source_file is not None:
         stmt = stmt.where(SourceItem.source_file_id == source_file)
+    if section is not None:
+        stmt = stmt.where(SourceItem.section_id == section)
     stmt = stmt.order_by(SourceItem.row_number)
     return list(db.scalars(stmt))

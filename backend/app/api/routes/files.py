@@ -11,9 +11,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.deps import get_current_user, require_object_access
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models import ConstructionObject, ObjectFile, SourceItem, User
+from app.models import ConstructionObject, ObjectFile, RdSection, SourceItem, User
 from app.models.enums import DocKind, ItemSource, ParseStatus
-from app.schemas.files import FileRead
+from app.schemas.files import FileRead, FileSectionUpdate
 from app.storage import get_storage
 
 router = APIRouter(prefix="/objects/{object_id}/files", tags=["files"])
@@ -53,6 +53,17 @@ def _get_file_or_404(file_id: int, db: Session, obj: ConstructionObject) -> Obje
     return f
 
 
+def _validate_section(db: Session, obj: ConstructionObject, section_id: int | None) -> RdSection | None:
+    if section_id is None:
+        return None
+    section = db.scalar(
+        select(RdSection).where(RdSection.id == section_id, RdSection.object_id == obj.id)
+    )
+    if section is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Шифр не принадлежит объекту")
+    return section
+
+
 @router.get("", response_model=list[FileRead])
 def list_files(
     object_id: int,
@@ -63,7 +74,7 @@ def list_files(
 ) -> list[ObjectFile]:
     stmt = (
         select(ObjectFile)
-        .options(selectinload(ObjectFile.uploader))
+        .options(selectinload(ObjectFile.uploader), selectinload(ObjectFile.section))
         .where(ObjectFile.object_id == obj.id)
     )
     if kind is not None:
@@ -79,9 +90,10 @@ def upload_file(
     user: User = Depends(get_current_user),
     obj: ConstructionObject = Depends(require_object_access),
     kind: DocKind = Form(DocKind.OTHER),
+    section_id: int | None = Form(default=None),
     file: UploadFile = File(...),
 ) -> ObjectFile:
-    """Загрузка файла на объект. Файл пишется в хранилище, метаданные — в БД."""
+    """Загрузка файла на объект (в шифр РД при указании section_id)."""
     original = file.filename or "file"
     ext = Path(original).suffix.lower().lstrip(".")
     allowed = ALLOWED_EXTENSIONS.get(kind, set())
@@ -90,6 +102,7 @@ def upload_file(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Для вида «{kind.value}» недопустимый формат .{ext or '?'}",
         )
+    section = _validate_section(db, obj, section_id)
     limit = _size_limit(ext)
 
     # 1) Сполим во временный файл: считаем sha256, контролируем лимит и magic bytes
@@ -158,6 +171,7 @@ def upload_file(
             object_id=obj.id,
             uploader_id=user.id,
             kind=kind,
+            section_id=section.id if section else None,
             original_filename=original,
             content_type=file.content_type or "application/octet-stream",
             size_bytes=total,
@@ -177,6 +191,24 @@ def upload_file(
     finally:
         tmp.close()
         Path(tmp_name).unlink(missing_ok=True)
+
+
+@router.patch("/{file_id}", response_model=FileRead)
+def update_file_section(
+    file_id: int,
+    body: FileSectionUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    obj: ConstructionObject = Depends(require_object_access),
+) -> ObjectFile:
+    """Привязка файла к шифру (перенос между шифрами или отвязка)."""
+    of = _get_file_or_404(file_id, db, obj)
+    section = _validate_section(db, obj, body.section_id)
+    of.section_id = section.id if section else None
+    db.add(of)
+    db.commit()
+    db.refresh(of)
+    return of
 
 
 @router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -253,6 +285,7 @@ def parse_file(
             item = SourceItem(
                 object_id=obj.id,
                 source_file_id=of.id,
+                section_id=of.section_id,
                 source=ItemSource.RD,
                 row_number=rec["row_number"],
                 position=str(rec["position"]) if rec["position"] else None,

@@ -24,6 +24,9 @@ class ObjectFile(Base):
         ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )
     kind: Mapped[DocKind] = mapped_column(nullable=False, default=DocKind.OTHER)
+    section_id: Mapped[int | None] = mapped_column(
+        ForeignKey("rd_section.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     original_filename: Mapped[str] = mapped_column(String(500), nullable=False)
     content_type: Mapped[str] = mapped_column(String(200), nullable=False, default="application/octet-stream")
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
@@ -35,6 +38,7 @@ class ObjectFile(Base):
     created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
 
     object: Mapped["ConstructionObject"] = relationship(back_populates="files")  # noqa: F821
+    section: Mapped["RdSection | None"] = relationship(back_populates="files")  # noqa: F821
     uploader: Mapped["User | None"] = relationship(foreign_keys=[uploader_id])  # noqa: F821
     items: Mapped[list["SourceItem"]] = relationship(  # noqa: F821
         back_populates="source_file", cascade="all, delete-orphan"

@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import DocKind, ParseStatus
+from app.schemas.sections import SectionBrief
 
 
 class UserBrief(BaseModel):
@@ -19,6 +20,7 @@ class FileRead(BaseModel):
     id: int
     object_id: int
     kind: DocKind
+    section: SectionBrief | None
     original_filename: str
     content_type: str
     size_bytes: int
@@ -28,3 +30,9 @@ class FileRead(BaseModel):
     parsed_items: int
     created_at: datetime
     uploader: UserBrief | None
+
+
+class FileSectionUpdate(BaseModel):
+    """Перенос файла в другой шифр (или отвязка, section_id=None)."""
+
+    section_id: int | None = None
