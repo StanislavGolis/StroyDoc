@@ -38,6 +38,10 @@ class SourceItemRead(BaseModel):
     page_number: int | None
     tracked: bool
     docs_count: int = 0
+    act_avk: int = 0
+    act_aosr: int = 0
+    act_vso: int = 0
+    act_vr: int = 0
     created_at: datetime
 
 

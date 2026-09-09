@@ -1,4 +1,5 @@
 """ORM-модели. Импорт сюда гарантирует регистрацию всех таблиц в Base.metadata."""
+from app.models.act import Act, act_item
 from app.models.assignment import ObjectAssignment
 from app.models.company import Company
 from app.models.construction_object import ConstructionObject
@@ -18,4 +19,6 @@ __all__ = [
     "SourceItem",
     "IncomingDoc",
     "incoming_doc_item",
+    "Act",
+    "act_item",
 ]

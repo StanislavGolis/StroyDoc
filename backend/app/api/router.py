@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import auth, docs, files, items, objects, sections, users
+from app.api.routes import acts, auth, docs, files, items, objects, sections, users
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
@@ -10,3 +10,4 @@ api_router.include_router(sections.router)
 api_router.include_router(files.router)
 api_router.include_router(items.router)
 api_router.include_router(docs.router)
+api_router.include_router(acts.router)

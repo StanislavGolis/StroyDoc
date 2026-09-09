@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user, require_object_access
 from app.db.session import get_db
-from app.models import ConstructionObject, SourceItem, User, incoming_doc_item
+from app.models import Act, ConstructionObject, SourceItem, User, act_item, incoming_doc_item
 from app.models.enums import ItemSource
 from app.schemas.items import SourceItemRead, SourceItemUpdate, TrackedBulkRequest
 
@@ -38,6 +38,7 @@ def list_items(
     stmt = stmt.order_by(SourceItem.section_id, SourceItem.row_number)
     rows = list(db.scalars(stmt))
     counts: dict[int, int] = {}
+    act_counts: dict[tuple[int, str], int] = {}
     if rows:
         ids = [r.id for r in rows]
         for item_id, cnt in db.execute(
@@ -48,10 +49,26 @@ def list_items(
             .group_by(incoming_doc_item.c.source_item_id)
         ):
             counts[item_id] = cnt
-    return [
-        SourceItemRead.model_validate(it).model_copy(update={"docs_count": counts.get(it.id, 0)})
-        for it in rows
-    ]
+        for item_id, act_type, cnt in db.execute(
+            select(act_item.c.source_item_id, Act.act_type, func.count())
+            .join(Act, Act.id == act_item.c.act_id)
+            .where(act_item.c.source_item_id.in_(ids))
+            .group_by(act_item.c.source_item_id, Act.act_type)
+        ):
+            act_counts[(item_id, act_type.value)] = cnt
+    result = []
+    for it in rows:
+        item = SourceItemRead.model_validate(it).model_copy(
+            update={
+                "docs_count": counts.get(it.id, 0),
+                "act_avk": act_counts.get((it.id, "avk"), 0),
+                "act_aosr": act_counts.get((it.id, "aosr"), 0),
+                "act_vso": act_counts.get((it.id, "vso"), 0),
+                "act_vr": act_counts.get((it.id, "vr"), 0),
+            }
+        )
+        result.append(item)
+    return result
 
 
 @router.post("/set-tracked", response_model=dict)

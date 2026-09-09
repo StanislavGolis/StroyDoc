@@ -56,3 +56,6 @@ class SourceItem(Base):
     docs: Mapped[list["IncomingDoc"]] = relationship(  # noqa: F821
         secondary="incoming_doc_item", back_populates="items"
     )
+    acts: Mapped[list["Act"]] = relationship(  # noqa: F821
+        secondary="act_item", back_populates="items"
+    )

@@ -20,10 +20,10 @@ import { itemsApi } from "@/lib/api";
 import type { SourceItem } from "@/lib/types";
 
 const DOC_COLUMNS = [
-  { key: "avk", title: "Акт входного контроля (АВК)" },
-  { key: "aosr", title: "АОСР" },
-  { key: "vso", title: "Вед. смонт. оборудования (ВСО)" },
-  { key: "vr", title: "Вед. выполненных работ (ВР)" },
+  { key: "avk", field: "act_avk", title: "АВК" },
+  { key: "aosr", field: "act_aosr", title: "АОСР" },
+  { key: "vso", field: "act_vso", title: "ВСО" },
+  { key: "vr", field: "act_vr", title: "ВР" },
 ];
 
 function prefixOf(item: SourceItem): string {
@@ -135,7 +135,10 @@ export function BingoTab({ objectId }: Props) {
       title: c.title,
       key: c.key,
       width: 90,
-      render: () => <Tag>—</Tag>,
+      render: (_: unknown, row: SourceItem) => {
+        const n = row[c.field as keyof SourceItem] as number;
+        return n > 0 ? <Tag color="green">{n}</Tag> : <Tag>—</Tag>;
+      },
     })),
   ];
 

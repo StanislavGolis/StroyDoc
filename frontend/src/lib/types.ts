@@ -101,6 +101,10 @@ export interface SourceItem {
   page_number: number | null;
   tracked: boolean;
   docs_count: number;
+  act_avk: number;
+  act_aosr: number;
+  act_vso: number;
+  act_vr: number;
 }
 
 export interface IncomingDoc {
