@@ -220,7 +220,7 @@ export default function ObjectDetailPage() {
           { key: "files", label: "Файлы", children: <FilesTab objectId={object.id} /> },
           { key: "docs", label: "Документы (паспорта)", children: <DocsTab objectId={object.id} /> },
           { key: "items", label: "Позиции (РД)", children: <PositionsTab objectId={object.id} /> },
-          { key: "bingo", label: "Бинго-карта", children: <BingoTab objectId={object.id} /> },
+          { key: "bingo", label: "Контрольная таблица", children: <BingoTab objectId={object.id} /> },
           { key: "acts", label: "Акты", children: <ActsTab objectId={object.id} /> },
         ]}
       />

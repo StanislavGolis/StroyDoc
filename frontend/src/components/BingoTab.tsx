@@ -179,7 +179,7 @@ export function BingoTab({ objectId }: Props) {
 
       <Space style={{ marginBottom: 12 }}>
         <Typography.Text strong>
-          Бинго-карта: {totals.total} позиций • с паспортом {totals.withDoc} • без паспорта{" "}
+          Контрольная таблица: {totals.total} позиций • с паспортом {totals.withDoc} • без паспорта{" "}
           {totals.total - totals.withDoc}
         </Typography.Text>
       </Space>
