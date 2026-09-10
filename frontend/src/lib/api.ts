@@ -7,6 +7,7 @@ import type {
   DashboardSummary,
   DocKind,
   IncomingDoc,
+  ItemType,
   ObjectFile,
   ObjectStatus,
   ResetPasswordResponse,
@@ -244,6 +245,9 @@ export interface ItemFilters {
   section?: number;
   tracked?: boolean;
   source_file?: number;
+  item_type?: ItemType;
+  /** true — только позиции без определённого типа */
+  untyped?: boolean;
 }
 
 export const itemsApi = {
@@ -252,6 +256,8 @@ export const itemsApi = {
     if (filters?.section) query.set("section", String(filters.section));
     if (filters?.tracked !== undefined) query.set("tracked", String(filters.tracked));
     if (filters?.source_file) query.set("source_file", String(filters.source_file));
+    if (filters?.item_type) query.set("item_type", filters.item_type);
+    if (filters?.untyped !== undefined) query.set("untyped", String(filters.untyped));
     const qs = query.toString();
     return request<SourceItem[]>(`/objects/${objectId}/items${qs ? `?${qs}` : ""}`);
   },
@@ -259,6 +265,14 @@ export const itemsApi = {
     request<SourceItem>(`/objects/${objectId}/items/${itemId}`, {
       method: "PATCH",
       body: JSON.stringify(patch),
+    }),
+  setType: (
+    objectId: number,
+    payload: { item_type: ItemType | null; section_id?: number; ids?: number[]; only_untyped?: boolean }
+  ) =>
+    request<{ updated: number }>(`/objects/${objectId}/items/set-type`, {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
   setTracked: (objectId: number, payload: { tracked: boolean; section_id?: number; ids?: number[] }) =>
     request<{ updated: number }>(`/objects/${objectId}/items/set-tracked`, {

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import ItemSource
+from app.models.enums import ItemSource, ItemType
 from app.schemas.sections import SectionBrief
 
 
@@ -15,6 +15,15 @@ class TrackedBulkRequest(BaseModel):
     ids: list[int] | None = None
 
 
+class ItemTypeBulkRequest(BaseModel):
+    """Массовое присвоение типа позиции (по объекту/шифру/списку id/только не типизированным)."""
+
+    item_type: ItemType | None = None  # None — сбросить тип
+    section_id: int | None = None
+    ids: list[int] | None = None
+    only_untyped: bool = False
+
+
 class SourceItemRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -22,6 +31,9 @@ class SourceItemRead(BaseModel):
     object_id: int
     source_file_id: int | None
     source: ItemSource
+    item_type: str | None
+    #: Ключи документов, требуемых для этой позиции (матрица закрытия) — см. app.services.closure
+    required_docs: list[str] = []
     section: SectionBrief | None
     row_number: int
     position: str | None
@@ -60,3 +72,4 @@ class SourceItemUpdate(BaseModel):
     notes: str | None = None
     full_code: str | None = None
     tracked: bool | None = None
+    item_type: ItemType | None = None

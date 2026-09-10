@@ -28,6 +28,8 @@ class SourceItem(Base):
         ForeignKey("object_file.id", ondelete="CASCADE"), nullable=True
     )
     source: Mapped[ItemSource] = mapped_column(nullable=False, default=ItemSource.RD)
+    # Тип позиции строкой: "work" | "material" | "equipment" | None (не типизирована)
+    item_type: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
     section_id: Mapped[int | None] = mapped_column(
         ForeignKey("rd_section.id", ondelete="SET NULL"), nullable=True, index=True
     )

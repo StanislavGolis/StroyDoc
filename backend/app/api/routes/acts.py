@@ -19,6 +19,7 @@ from app.schemas.acts import (
     ActUpdate,
 )
 from app.schemas.items import SourceItemRead
+from app.services.closure import act_covers, required_docs
 
 router = APIRouter(prefix="/objects/{object_id}/acts", tags=["acts"])
 
@@ -50,6 +51,35 @@ def _linked(act_id: int, db: Session) -> int:
     return db.scalar(
         select(func.count()).select_from(act_item).where(act_item.c.act_id == act_id)
     ) or 0
+
+
+def _validate_items_for_act(
+    act_type: ActType, item_ids: list[int], db: Session, obj: ConstructionObject
+) -> None:
+    """Проверяет допустимость позиций для вида акта по матрице закрытия.
+
+    Несуществующие позиции тихо игнорируются (как и раньше), а несовместимые по типу —
+    отклоняются: АВК не может закрыть работу, ВР — материал/оборудование и т.д.
+    """
+    ids = set(item_ids)
+    if not ids:
+        return
+    rows = db.execute(
+        select(SourceItem.id, SourceItem.item_type).where(
+            SourceItem.object_id == obj.id, SourceItem.id.in_(ids)
+        )
+    ).all()
+    bad = [item_id for item_id, item_type in rows if not act_covers(act_type, item_type)]
+    if bad:
+        label = ACT_TYPE_LABELS.get(act_type, str(act_type))
+        preview = ", ".join(str(i) for i in bad[:10]) + ("…" if len(bad) > 10 else "")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Для акта «{label}» недопустимы позиции по типу: {preview}. "
+                "Проверьте тип позиции (материал / оборудование / работа)."
+            ),
+        )
 
 
 def _read(act: Act, db: Session) -> dict:
@@ -100,6 +130,10 @@ def create_act(
             or 0
         ) + 1
         auto_number = f"{ACT_PREFIX.get(body.act_type, body.act_type.value)}-{seq:03d}"
+
+    # проверяем состав ДО создания акта: несовместимые по типу позиции — ошибка
+    if body.item_ids:
+        _validate_items_for_act(body.act_type, body.item_ids, db, obj)
 
     act = Act(
         company_id=obj.company_id,
@@ -165,7 +199,9 @@ def act_items(
         )
     )
     return [
-        SourceItemRead.model_validate(it).model_copy(update={"docs_count": len(it.docs)})
+        SourceItemRead.model_validate(it).model_copy(
+            update={"docs_count": len(it.docs), "required_docs": required_docs(it.item_type)}
+        )
         for it in items
     ]
 
@@ -180,6 +216,7 @@ def add_items(
     obj: ConstructionObject = Depends(require_object_access),
 ) -> dict:
     act = _get_act_or_404(act_id, db, obj)
+    _validate_items_for_act(act.act_type, body.item_ids, db, obj)
     found = set(
         db.scalars(
             select(SourceItem.id).where(

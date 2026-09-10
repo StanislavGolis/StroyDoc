@@ -40,6 +40,14 @@ class ItemSource(str, Enum):
     ESTIMATE = "estimate"  # смета
 
 
+class ItemType(str, Enum):
+    """Тип позиции. Определяет матрицу закрытия (см. app.services.closure)."""
+
+    WORK = "work"  # работа из «Ведомости объемов работ»
+    MATERIAL = "material"  # материал
+    EQUIPMENT = "equipment"  # оборудование
+
+
 class ActType(str, Enum):
     """Типы актов (закрывающие документы)."""
 

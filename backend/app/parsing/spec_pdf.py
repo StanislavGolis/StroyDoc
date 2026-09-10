@@ -162,6 +162,81 @@ def _to_decimal(text: str) -> float | None:
         return None
 
 
+def _parse_work_page(page: pymupdf.Page) -> list[dict]:
+    """Парсинг листа «Ведомость объемов работ».
+
+    В такой ведомости нет колонки «Поз.»: позиция = блок текста, который
+    заканчивается значением количества в правой колонке. Каждый такой блок
+    становится записью типа «работа».
+    """
+    words = _clean_word_list(page.get_text("words"))
+    if not words:
+        return []
+    qx: float | None = None
+    hy: float | None = None
+    ex: float | None = None
+    for w in sorted(words, key=lambda x: (x[1], x[0])):
+        low = w[4].lower()
+        if qx is None and low.startswith("кол") and ("-во" in low or "кол." == low):
+            qx = w[0]
+            hy = round(w[1], 1)
+            continue
+        if hy is not None and ex is None and low.rstrip(".") == "ед":
+            if abs(w[1] - hy) <= 6:
+                ex = w[0]
+    if qx is None:
+        return []
+    if ex is None:
+        ex = qx - 180
+
+    num_re = re.compile(r"^\d{1,6}([.,]\d{1,3})?$")
+    anchors: list[dict] = []
+    for w in words:
+        if (
+            num_re.match(w[4])
+            and abs((w[0] + w[2]) / 2 - qx) <= 140
+            and (hy is None or w[1] > hy + 2)
+        ):
+            anchors.append({"y": w[1], "q": w[4].replace(",", ".")})
+    anchors.sort(key=lambda a: a["y"])
+
+    results: list[dict] = []
+    for idx, a in enumerate(anchors):
+        prev_y = anchors[idx - 1]["y"] if idx else (hy or 0) + 2
+        # текст наименования — слова левее колонки «Ед.»
+        name_tokens = [
+            t[4]
+            for t in words
+            if t[1] >= prev_y - 2 and t[1] <= a["y"] + 1 and t[0] < (ex or 0)
+        ]
+        # единица измерения — слово между «Ед.» и количеством, ближайшее к количеству
+        unit_tokens = [
+            t
+            for t in words
+            if t[1] >= a["y"] - 14
+            and t[1] <= a["y"] + 1
+            and t[2] > (ex or 0)
+            and t[0] < qx
+            and not num_re.match(t[4])
+        ]
+        unit = max(unit_tokens, key=lambda t: t[1])[4] if unit_tokens else None
+        name = " ".join(name_tokens)
+        name = re.sub(r"\s+", " ", name).strip()
+        name = name.replace(f" {a['q']}", "").strip()
+        if name:
+            results.append(
+                {
+                    "position": None,
+                    "name": name,
+                    "mark_doc": None,
+                    "unit": unit,
+                    "quantity": a["q"],
+                    "notes": None,
+                }
+            )
+    return results
+
+
 FIELD_ORDER = [
     "position",
     "name",
@@ -193,8 +268,8 @@ _POS_RE = re.compile(r"^\d{1,5}$|^\d{1,4}[а-яa-z]$|^[IVXLCDM]{1,6}$")
 _FULL_CODE_RE = re.compile(r"(?:^|\s)([^\s]*\.СО\d+)")
 
 
-def _page_meta(text: str) -> tuple[str | None, str | None]:
-    """Определяет полный шифр листа и категорию поставки по тексту страницы."""
+def _page_meta(text: str) -> tuple[str | None, str | None, bool]:
+    """Мета страницы: полный шифр, категория поставки, признак «ведомости работ»."""
     full_code: str | None = None
     for m in _FULL_CODE_RE.finditer(text):
         candidate = m.group(1).strip().strip(".,;")
@@ -210,7 +285,122 @@ def _page_meta(text: str) -> tuple[str | None, str | None]:
         category = "Поставка подрядчика"
     elif "заказчик" in low:
         category = "Поставка заказчика"
-    return full_code, category
+    is_work = ("ведомост" in low and "работ" in low) or ("ведомост" in low and "объем" in low)
+    return full_code, category, is_work
+
+
+# --- Тип позиции (материал / оборудование / работа) -------------------------
+# Лист спецификации определяет тип («Спецификация оборудования», «… материалов»).
+# Если заголовок не распознан — словарный fallback по наименованию/марке.
+
+_EQUIPMENT_HINTS = (
+    "оборудован",
+    "устройств",
+    "прибор",
+    "датчик",
+    "извещател",
+    "оповещател",
+    "шкаф",
+    "щит",
+    "блок",
+    "модул",
+    "панел",
+    "камер",
+    "светильник",
+    "прожектор",
+    "кран",
+    "насос",
+    "вентилятор",
+    "генератор",
+    "трансформатор",
+    "коммутатор",
+    "регистратор",
+    "контроллер",
+    "сервер",
+    "конвертер",
+    "источник питания",
+    "аккумулятор",
+    "табло",
+    "домофон",
+)
+
+_MATERIAL_HINTS = (
+    "материал",
+    "кабел",
+    "провод",
+    "труба",
+    "гофр",
+    "лоток",
+    "крепеж",
+    "муфт",
+    "смесь",
+    "бетон",
+    "раствор",
+    "грунтов",
+    "краск",
+    "эмаль",
+    "лист",
+    "уголок",
+    "профил",
+    "швеллер",
+    "арматур",
+    "сетка",
+    "заглушк",
+    "сва",
+    "песок",
+    "щебень",
+    "гравий",
+    "цемент",
+    "оголовок",
+    "фундамент",
+    "кирпич",
+    "блок газобетон",
+    "изоляц",
+    "герметик",
+    "шпатлевк",
+    "утеплител",
+    "минват",
+    "пенопласт",
+    "битум",
+    "рулон",
+    "профнастил",
+)
+
+
+
+def _page_item_type(text: str, is_work: bool) -> str | None:
+    """Тип позиций листа по заголовку: «work» / «equipment» / «material» / None.
+
+    Стандартный заголовок ГОСТ «Спецификация оборудования, изделий и материалов»
+    содержит оба слова — он неоднозначен, и тогда тип определяет словарь по строкам.
+    """
+    if is_work:
+        return "work"
+    head_lines = [line for line in text.splitlines() if line.strip()][:12]
+    head = "\n".join(head_lines).lower()
+    has_equipment = "оборудован" in head
+    has_material = "материал" in head
+    if has_equipment and not has_material:
+        return "equipment"
+    if has_material and not has_equipment:
+        return "material"
+    return None
+
+
+def _row_item_type(rec: dict) -> str | None:
+    """Словарный fallback: тип позиции по наименованию/марке/коду продукции."""
+    text = " ".join(
+        str(rec.get(key) or "") for key in ("name", "mark_doc", "product_code")
+    ).lower()
+    if not text.strip():
+        return None
+    for hint in _EQUIPMENT_HINTS:
+        if hint in text:
+            return "equipment"
+    for hint in _MATERIAL_HINTS:
+        if hint in text:
+            return "material"
+    return None
 
 
 def _line_words(words: list[tuple], tol: float = 3.0) -> list[list[tuple]]:
@@ -322,46 +512,52 @@ def parse_spec_pdf_bytes(data: bytes) -> list[dict]:
         def _store(recs: list[dict]) -> None:
             nonlocal row_counter
             for rec in recs:
-                if not rec.get("position"):
+                if not rec.get("position") and rec.get("item_type") != "work":
                     continue
                 row_counter += 1
                 rec["row_number"] = row_counter
                 results.append(rec)
 
         for page_no, page in enumerate(doc, start=1):
-            full_code, category = _page_meta(page.get_text())
-            table = _extract_page_table(page)
+            page_text = page.get_text()
+            full_code, category, is_work = _page_meta(page_text)
+            page_type = _page_item_type(page_text, is_work)
             page_records: list[dict] = []
-            if table.columns and table.rows:
-                # ищем строку-заголовок, чтобы понять раскладку колонок
-                mapping: dict[int, str] | None = None
-                header_idx = -1
-                for i, cells in enumerate(table.rows):
-                    joined = [_join(c) for c in cells]
-                    joined_text = " ".join(joined).lower()
-                    if "наименование" in joined_text and any("поз" in c.lower() for c in joined):
-                        mapping = _detect_header_mapping(joined)
-                        header_idx = i
-                        break
-                if mapping is not None:
+            if is_work:
+                page_records = _parse_work_page(page)
+            else:
+                table = _extract_page_table(page)
+                if table.columns and table.rows:
+                    # ищем строку-заголовок, чтобы понять раскладку колонок
+                    mapping: dict[int, str] | None = None
+                    header_idx = -1
                     for i, cells in enumerate(table.rows):
-                        if i <= header_idx:
-                            continue
                         joined = [_join(c) for c in cells]
-                        if not _is_data_row(joined, mapping):
-                            continue
-                        rec: dict[str, str | float | None] = {f: None for f in FIELD_ORDER}
-                        for idx, fname in mapping.items():
-                            if 0 <= idx < len(joined):
-                                rec[fname] = joined[idx] or None
-                        page_records.append(rec)
-            if not page_records:
-                page_records = _heuristic_page(page)
+                        joined_text = " ".join(joined).lower()
+                        if "наименование" in joined_text and any("поз" in c.lower() for c in joined):
+                            mapping = _detect_header_mapping(joined)
+                            header_idx = i
+                            break
+                    if mapping is not None:
+                        for i, cells in enumerate(table.rows):
+                            if i <= header_idx:
+                                continue
+                            joined = [_join(c) for c in cells]
+                            if not _is_data_row(joined, mapping):
+                                continue
+                            rec: dict[str, str | float | None] = {f: None for f in FIELD_ORDER}
+                            for idx, fname in mapping.items():
+                                if 0 <= idx < len(joined):
+                                    rec[fname] = joined[idx] or None
+                            page_records.append(rec)
+                if not page_records:
+                    page_records = _heuristic_page(page)
             for rec in page_records:
                 rec["quantity_value"] = _to_decimal(str(rec["quantity"])) if rec.get("quantity") else None
                 rec["full_code"] = full_code
                 rec["category"] = category
                 rec["page_number"] = page_no
+                rec["item_type"] = page_type or _row_item_type(rec)
             _store(page_records)
     finally:
         doc.close()

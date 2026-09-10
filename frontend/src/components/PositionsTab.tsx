@@ -12,6 +12,7 @@ import {
   InputNumber,
   Modal,
   Segmented,
+  Select,
   Space,
   Spin,
   Table,
@@ -25,8 +26,23 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { itemsApi } from "@/lib/api";
-import type { SourceItem } from "@/lib/types";
+import { ITEM_TYPE_LABELS } from "@/lib/labels";
+import type { ItemType, SourceItem } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
+
+const TYPE_OPTIONS: { value: ItemType; label: string }[] = [
+  { value: "material", label: ITEM_TYPE_LABELS.material },
+  { value: "equipment", label: ITEM_TYPE_LABELS.equipment },
+  { value: "work", label: ITEM_TYPE_LABELS.work },
+];
+
+const TYPE_FILTERS = [
+  { label: "Все типы", value: "all" },
+  { label: ITEM_TYPE_LABELS.material, value: "material" },
+  { label: ITEM_TYPE_LABELS.equipment, value: "equipment" },
+  { label: ITEM_TYPE_LABELS.work, value: "work" },
+  { label: "Не типизировано", value: "untyped" },
+];
 
 interface TextEditProps {
   value: string | null;
@@ -91,6 +107,7 @@ export function PositionsTab({ objectId }: Props) {
   const [items, setItems] = useState<SourceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [trackedFilter, setTrackedFilter] = useState<string>("tracked");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [q, setQ] = useState("");
   const [expanded, setExpanded] = useState<string[]>([]);
   const [detail, setDetail] = useState<SourceItem | null>(null);
@@ -116,13 +133,18 @@ export function PositionsTab({ objectId }: Props) {
 
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter((it) =>
+    const byType = items.filter((it) => {
+      if (typeFilter === "untyped") return !it.item_type;
+      if (typeFilter === "all") return true;
+      return it.item_type === typeFilter;
+    });
+    if (!needle) return byType;
+    return byType.filter((it) =>
       [it.full_code, it.position, it.name, it.mark, it.product_code, it.supplier]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle))
     );
-  }, [items, q]);
+  }, [items, q, typeFilter]);
 
   interface Group {
     key: string;
@@ -188,6 +210,26 @@ export function PositionsTab({ objectId }: Props) {
   };
 
   const toggleTracked = (item: SourceItem) => void applyPatch(item.id, { tracked: !item.tracked });
+
+  /** Ручная правка типа позиции (README 3.2). */
+  const setItemType = (item: SourceItem, value: ItemType | null) =>
+    void applyPatch(item.id, { item_type: value });
+
+  /** Массово задать тип позициям шифра, у которых тип ещё не определён. */
+  const bulkSetType = async (group: Group, value: ItemType) => {
+    const ids = group.items.filter((i) => !i.item_type).map((i) => i.id);
+    if (ids.length === 0) {
+      message.info("В этом шифре нет позиций без типа");
+      return;
+    }
+    try {
+      await itemsApi.setType(objectId, { item_type: value, ids });
+      message.success(`Тип «${ITEM_TYPE_LABELS[value]}» задан позициям: ${ids.length}`);
+      await load();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Не удалось задать тип");
+    }
+  };
 
   const openDetail = (item: SourceItem) => {
     setDetail(item);
@@ -273,6 +315,22 @@ export function PositionsTab({ objectId }: Props) {
           checked={row.tracked}
           onChange={() => toggleTracked(row)}
           title={row.tracked ? "Отслеживаем" : "Скрыто из Мастер-списка"}
+        />
+      ),
+    },
+    {
+      title: "Тип",
+      key: "item_type",
+      width: 150,
+      render: (_, row) => (
+        <Select<ItemType>
+          size="small"
+          allowClear
+          style={{ width: 130 }}
+          placeholder="не задан"
+          value={row.item_type ?? undefined}
+          onChange={(v) => setItemType(row, (v as ItemType | undefined) ?? null)}
+          options={TYPE_OPTIONS}
         />
       ),
     },
@@ -383,6 +441,11 @@ export function PositionsTab({ objectId }: Props) {
               { label: "Скрытые", value: "untracked" },
             ]}
           />
+          <Segmented
+            value={typeFilter}
+            onChange={(v) => setTypeFilter(String(v))}
+            options={TYPE_FILTERS}
+          />
         </Space>
         <Button icon={<ReloadOutlined />} onClick={() => void load()}>
           Обновить
@@ -417,6 +480,13 @@ export function PositionsTab({ objectId }: Props) {
                 ))}
                 <div style={{ marginLeft: "auto" }} onClick={(e) => e.stopPropagation()}>
                   <Space>
+                    <Select
+                      size="small"
+                      style={{ width: 200 }}
+                      placeholder="Тип для нетипизированных"
+                      onChange={(v: ItemType) => void bulkSetType(g, v)}
+                      options={TYPE_OPTIONS}
+                    />
                     <Button size="small" icon={<EyeOutlined />} title="Показывать в Мастер-списке" onClick={() => void showGroupAll(g)}>
                       Показать
                     </Button>

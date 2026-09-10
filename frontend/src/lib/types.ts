@@ -80,11 +80,20 @@ export interface ObjectFile {
   uploader: { id: number; full_name: string; email: string } | null;
 }
 
+export type ItemType = "material" | "equipment" | "work";
+
+/** Ключи документов матрицы закрытия (см. backend/app/services/closure.py) */
+export type ClosureDocKey = "passport" | "avk" | "aosr" | "vso" | "vr";
+
 export interface SourceItem {
   id: number;
   object_id: number;
   source_file_id: number | null;
   source: "rd" | "estimate";
+  /** Тип позиции; null — не определён (требуется классификация) */
+  item_type: ItemType | null;
+  /** Документы, требуемые для позиции по матрице закрытия */
+  required_docs: ClosureDocKey[];
   section: { id: number; code: string; name: string | null } | null;
   row_number: number;
   position: string | null;
@@ -143,6 +152,16 @@ export interface ObjectDashItem {
   items_without_docs: number;
   ready_pct: number;
   acts_total: number;
+  work_total: number;
+  vr_closed: number;
+  non_work_total: number;
+  avk_closed: number;
+  aosr_closed: number;
+  vso_closed: number;
+  material_total: number;
+  equipment_total: number;
+  /** Позиции без определённого типа — требуется классификация */
+  untyped_total: number;
 }
 
 export interface DashboardSummary {

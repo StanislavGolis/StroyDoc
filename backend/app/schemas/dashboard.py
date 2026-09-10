@@ -11,6 +11,19 @@ class ObjectDashItem(BaseModel):
     items_without_docs: int
     ready_pct: int
     acts_total: int
+    # работы (из «Ведомостей объемов работ») и их закрытие ВР
+    work_total: int
+    vr_closed: int
+    # остальные позиции (материалы + оборудование + не типизированные) и закрытие по типам
+    non_work_total: int
+    avk_closed: int
+    aosr_closed: int
+    vso_closed: int
+    # разбивка не-работ по типам позиции (матрица закрытия, см. app.services.closure)
+    material_total: int
+    equipment_total: int
+    #: позиции, тип которых не определён — требуется ручная классификация
+    untyped_total: int
 
 
 class DashboardTotals(BaseModel):

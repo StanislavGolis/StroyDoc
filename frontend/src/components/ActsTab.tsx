@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   App as AntApp,
   Button,
+  Checkbox,
   DatePicker,
   Form,
   Input,
@@ -25,8 +26,8 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import dayjs, { type Dayjs } from "dayjs";
 import { actsApi, itemsApi } from "@/lib/api";
-import { formatDate } from "@/lib/labels";
-import type { Act, ActType, SourceItem } from "@/lib/types";
+import { formatDate, ITEM_TYPE_COLORS, ITEM_TYPE_LABELS } from "@/lib/labels";
+import type { Act, ActType, ItemType, SourceItem } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 
 const ACT_TYPE_LABELS: Record<ActType, string> = {
@@ -35,6 +36,28 @@ const ACT_TYPE_LABELS: Record<ActType, string> = {
   vso: "Ведомость смонтированного оборудования",
   vr: "Ведомость выполненных работ",
 };
+
+/** Какие типы позиций закрывает акт (матрица закрытия, см. backend/app/services/closure.py). */
+const ACT_ITEM_TYPES: Record<ActType, ItemType[]> = {
+  avk: ["material", "equipment"],
+  aosr: ["material"],
+  vso: ["equipment"],
+  vr: ["work"],
+};
+
+/** Допускаются ли в акт позиции с неопределённым типом. */
+const ACT_ALLOWS_UNTYPED: Record<ActType, boolean> = {
+  avk: true,
+  aosr: true,
+  vso: true,
+  vr: false,
+};
+
+/** Подходит ли позиция для акта данного вида. */
+function matchesAct(item: SourceItem, actType: ActType): boolean {
+  if (!item.item_type) return ACT_ALLOWS_UNTYPED[actType];
+  return ACT_ITEM_TYPES[actType].includes(item.item_type);
+}
 
 interface Props {
   objectId: number;
@@ -51,11 +74,15 @@ export function ActsTab({ objectId }: Props) {
   const [itemQ, setItemQ] = useState("");
   const [itemKeys, setItemKeys] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  // «Показать все типы» — по умолчанию модалка показывает только допустимые типы позиций
+  const [showAll, setShowAll] = useState(false);
   const [createForm] = Form.useForm<{
     act_type: ActType;
     doc_number?: string;
     doc_date?: Dayjs;
   }>();
+  const watchedActType = Form.useWatch("act_type", createForm) as ActType | undefined;
+  const currentActType: ActType = watchedActType ?? "avk";
 
   const [viewAct, setViewAct] = useState<Act | null>(null);
   const [actItems, setActItems] = useState<SourceItem[]>([]);
@@ -145,26 +172,30 @@ export function ActsTab({ objectId }: Props) {
   };
 
   const pickerRows = useMemo(() => {
+    const allowed = allItems.filter((it) => showAll || matchesAct(it, currentActType));
     const needle = itemQ.trim().toLowerCase();
-    if (!needle) return allItems;
-    return allItems.filter((it) =>
+    if (!needle) return allowed;
+    return allowed.filter((it) =>
       [it.full_code, it.name, it.mark, it.supplier, it.position]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle))
     );
-  }, [allItems, itemQ]);
+  }, [allItems, itemQ, showAll, currentActType]);
 
   const addRows = useMemo(() => {
     const needle = addQ.trim().toLowerCase();
     const inAct = new Set(actItems.map((i) => i.id));
-    const base = allItems.filter((i) => !inAct.has(i.id));
+    // в акт можно добавить только позиции, подходящие по виду акта (проверяет и сервер)
+    const base = allItems.filter(
+      (i) => !inAct.has(i.id) && (viewAct ? matchesAct(i, viewAct.act_type) : true)
+    );
     if (!needle) return base;
     return base.filter((it) =>
       [it.full_code, it.name, it.mark, it.supplier, it.position]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle))
     );
-  }, [allItems, actItems, addQ]);
+  }, [allItems, actItems, addQ, viewAct]);
 
   const columns: ColumnsType<Act> = [
     { title: "Тип", dataIndex: "act_type", width: 200, render: (t: ActType) => ACT_TYPE_LABELS[t] ?? t },
@@ -233,6 +264,13 @@ export function ActsTab({ objectId }: Props) {
     { title: "Шифр", dataIndex: "full_code", width: 260, render: (v: string | null) => v ?? "—" },
     { title: "Поз.", dataIndex: "position", width: 70 },
     { title: "Наименование", dataIndex: "name" },
+    {
+      title: "Тип",
+      dataIndex: "item_type",
+      width: 120,
+      render: (v: ItemType | null) =>
+        v ? <Tag color={ITEM_TYPE_COLORS[v]}>{ITEM_TYPE_LABELS[v]}</Tag> : <Tag>не задан</Tag>,
+    },
     { title: "Тип/марка", dataIndex: "mark", width: 200, render: (v: string | null) => v ?? "—" },
     { title: "Ед.", dataIndex: "unit", width: 70 },
     { title: "Кол.", dataIndex: "quantity", width: 80 },
@@ -297,6 +335,16 @@ export function ActsTab({ objectId }: Props) {
             </Form.Item>
           </Space>
           <Typography.Paragraph strong>Выберите позиции из Мастер-списка:</Typography.Paragraph>
+          <Space style={{ marginBottom: 8 }} wrap>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Под этот акт подходят:{" "}
+              {ACT_ITEM_TYPES[currentActType].map((t) => ITEM_TYPE_LABELS[t]).join(", ")}
+              {ACT_ALLOWS_UNTYPED[currentActType] ? " и позиции без типа" : ""}
+            </Typography.Text>
+            <Checkbox checked={showAll} onChange={(e) => setShowAll(e.target.checked)}>
+              Показать все типы
+            </Checkbox>
+          </Space>
           <Input.Search
             placeholder="Поиск по наименованию, шифру, марке…"
             allowClear
@@ -326,6 +374,9 @@ export function ActsTab({ objectId }: Props) {
         footer={null}
         width="80%"
       >
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+          В список добавления попадают только позиции, подходящие под вид акта.
+        </Typography.Paragraph>
         <Space style={{ marginBottom: 8 }} wrap>
           <Input.Search
             placeholder="Добавить: поиск по наименованию/шифру…"

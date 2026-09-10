@@ -9,13 +9,17 @@ URL = "/api/v1/objects"
 def test_page_meta_detects_code_and_category():
     from app.parsing.spec_pdf import _page_meta
 
-    code, cat = _page_meta("Спецификация оборудования ... 00819.РП.0.000.0-ТСО.СО1 поставки Заказчика")
+    code, cat, is_work = _page_meta(
+        "Спецификация оборудования ... 00819.РП.0.000.0-ТСО.СО1 поставки Заказчика"
+    )
     assert code == "00819.РП.0.000.0-ТСО.СО1"
     assert cat == "Поставка заказчика"
+    assert is_work is False
 
-    code2, cat2 = _page_meta("Шифр КЖ.СО2 обменный фонд")
+    code2, cat2, work = _page_meta("Шифр КЖ.СО2 Ведомость объемов работ")
     assert code2 == "КЖ.СО2"
-    assert cat2 == "Обменный фонд"
+    assert cat2 is None
+    assert work is True
 
 
 def test_edit_item_and_tracked(client, make_user, login):

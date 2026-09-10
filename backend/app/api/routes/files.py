@@ -300,6 +300,7 @@ def parse_file(
                 source_file_id=of.id,
                 section_id=of.section_id,
                 source=ItemSource.RD,
+                item_type=rec["item_type"] if rec.get("item_type") else None,
                 row_number=rec["row_number"],
                 position=str(rec["position"]) if rec["position"] else None,
                 name=str(rec["name"]) if rec["name"] else "",
