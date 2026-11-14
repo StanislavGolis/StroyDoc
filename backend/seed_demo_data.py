@@ -15,9 +15,9 @@ SPEC_FILES = ["Спецификация ТСО.pdf", "Спецификация �
 ADMIN = {"email": "admin@example.com", "password": "admin123"}
 
 ENGINEERS = [
-    ("Иванов Иван Петрович", "demo.pto1@stroydoc.ru"),
-    ("Петрова Мария Сергеевна", "demo.pto2@stroydoc.ru"),
-    ("Смирнов Алексей Николаевич", "demo.pto3@stroydoc.ru"),
+    ("Иванов Иван Петрович", "demo.pto1@example.com"),
+    ("Петрова Мария Сергеевна", "demo.pto2@example.com"),
+    ("Смирнов Алексей Николаевич", "demo.pto3@example.com"),
 ]
 # name, code, status, инженеры, грузить РД, профиль закрытия (avk,aosr,vso,vr)
 OBJECTS = [
